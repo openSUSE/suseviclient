@@ -25,6 +25,7 @@ echo  "Tool to create and control virtual machines on ESX(i) servers
 Options:
 -s <ip or domain name of ESX server>
 -c Create new vm
+   -n <label> for the new virtual machine
    -m <size> of RAM in megabytes
    -d <size> of hard disk (M/G)
    --iso <path> to ISO image in format of <datastore>/path/to/image.iso (optional)
@@ -215,7 +216,7 @@ RemoteDisplay.vnc.password = \"$vnc_password\""
 dslist() {
  $ssh root@$esx_server "vim-cmd hostsvc/datastore/listsummary" | grep name | awk {'print $3'} | sed 's/",*//g' 	
 }
-set -- `getopt -n$0  -u -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: revert: remove: addvnc: bios: dslist" "hcln:s:m:d:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: revert: remove: addvnc: bios: dslist" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -224,7 +225,7 @@ do
              -s)  esx_server=$2;shift;;
              -m)  ram=$2;shift;;
 	     -d)  disk=$2;shift;;
-	     -n)  name=$3; echo $name;shift;;
+	     -n) name=$2; echo $name;shift;;
 	     -c)  create_new="1";;
 	     -l)  list="1";;
 	     --iso) iso="$2";shift;;
@@ -257,9 +258,9 @@ then	ssh root@$esx_server test -e /vmfs/volumes/$iso
 	[ $? -eq 1 ] && echo "ISO image does not exist on Datastore" && cleanup
 fi
 
-if [[ ! -z $create_new  && -n $esx_server && -n $ram && -n $disk ]]
+if [[ ! -z $create_new  && -n $esx_server && -n $ram && -n $disk && -n $name ]]
 	then
-	askname
+#	askname
 	vnc_pass
 	vnc_port
 	register_vm	
