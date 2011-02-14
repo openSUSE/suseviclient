@@ -27,17 +27,18 @@ Options:
 -c Create new vm
    -m <size> of RAM in megabytes
    -d <size> of hard disk (M/G)
-   --iso <path> to ISO image on shnell.suse.de(CD-ARCHIVE) or datastore2 (optional)
+   --iso <path> to ISO image in format of <datastore>/path/to/image.iso (optional)
 -l List all guests
+--dslist List all datastores
 --status <vmid> Get parametres of VM
 --poweron <vmid> Power On VM
    --bios Launc a VM's BIOS after start	
 --poweroff <vmid> Power Off VM
 --vnc <vmid> Connect to VM via VNC
+--addvnc <vmid> Add VNC support to an existing VM ( guest need to be restarted to take effect)
 --snapshot <vmid> Make snapshot of current VM status
 --revert <vmid> Revert from snapshot
 --remove <vmid> Delete VM
---addvnc <vmid> Add VNC support to an existing VM
 --help This help
 "
 }
@@ -46,7 +47,7 @@ Options:
 # Create and register VM
 
 askname (){
-echo "Please enter virtual machine name:"
+echo "Please enter a label for the new virtual machine:"
 read name
 }
 
@@ -210,7 +211,11 @@ RemoteDisplay.vnc.password = \"$vnc_password\""
     $ssh root$esx_server "echo \"$vnc_config\" >> 'vmfs/volumes/$datastore/$name/$name.vmx' && vim-cmd vmsvc/reload $1"
     fi
 }
-set -- `getopt -n$0  -u -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: revert: remove: addvnc: bios" "hcln:s:m:d:" "$@"` || usage 
+
+dslist() {
+ $ssh root@$esx_server "vim-cmd hostsvc/datastore/listsummary" | grep name | awk {'print $3'} | sed 's/",*//g' 	
+}
+set -- `getopt -n$0  -u -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: revert: remove: addvnc: bios: dslist" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -219,7 +224,7 @@ do
              -s)  esx_server=$2;shift;;
              -m)  ram=$2;shift;;
 	     -d)  disk=$2;shift;;
-	     -n)  name=$2; echo $name;shift;;
+	     -n)  name=$3; echo $name;shift;;
 	     -c)  create_new="1";;
 	     -l)  list="1";;
 	     --iso) iso="$2";shift;;
@@ -232,6 +237,7 @@ do
 	     --remove) remove_vmid=$2;shift;;
 	     --vnc) vnc="$2";shift;;
 	     --addvnc) addvnc_vmid="$2";shift;;
+	     --dslist) dslist="1";shift;;
              -h)        ;;
 	     --help)  ;;
 	     --)        shift;break;;
@@ -266,6 +272,10 @@ if [ ! -z $power_on_vmid ]
 		power_on $power_on_vmid
 fi
 
+#dslist execution
+if [[  -n $esx_server && ! -z $dslist ]] 
+then  dslist ; cleanup
+fi
 
 if [[  -n $esx_server && ! -z $vnc ]] 
 then  vmid2name $vnc && get_vnc_port && vnc_connect ; cleanup
