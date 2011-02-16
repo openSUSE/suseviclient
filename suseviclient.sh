@@ -58,7 +58,7 @@ Options:
 --dslist List all datastores
 --status <vmid> Get parametres of VM
 --poweron <vmid> Power On VM
-   --bios Launc a VM's BIOS after start	
+   --bios Launch a VM's BIOS after start	
 --poweroff <vmid> Power Off VM
 --vnc <vmid> Connect to VM via VNC
 --addvnc <vmid> Add VNC support to an existing VM ( guest need to be restarted to take effect)
@@ -130,8 +130,8 @@ power_on() {
 	biosonce_config="bios.forceSetupOnce = \"TRUE\""
 	vmid2name $1
 	vmid2datastore $1
-	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$name/$name.vmx' && sed -i s/bios\.forceSetupOnce.*/bios\.forceSetupOnce=TRUE/g '/vmfs/volumes/$datastore/$name/$name.vmx'"
-	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$name/$name.vmx' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$name/$name.vmx' && vim-cmd vmsvc/reload $1"
+	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$name/$name.vmx' && sed -i s/bios\.forceSetupOnce.*/bios\.forceSetupOnce=TRUE/g '/vmfs/volumes/$datastore/$name/$name.vmx'" > /dev/null
+	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$name/$name.vmx' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$name/$name.vmx' && vim-cmd vmsvc/reload $1" > /dev/null
 	fi
 ssh root@$esx_server "vim-cmd vmsvc/power.on $1"
 }
@@ -241,7 +241,7 @@ RemoteDisplay.vnc.password = \"$vnc_password\""
 dslist() {
  $ssh root@$esx_server "vim-cmd hostsvc/datastore/listsummary" | grep name | awk {'print $3'} | sed 's/",*//g' 	
 }
-eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: revert: remove: addvnc: bios: dslist" "hcln:s:m:d:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: revert: remove: addvnc: bios dslist" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
