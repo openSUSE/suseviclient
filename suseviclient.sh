@@ -14,10 +14,35 @@ cleanup() {
 }
 
 initial_info() {
-	echo -e "\nGuest List:\n"
-	$ssh root@$esx_server "vim-cmd vmsvc/getallvms"
-        echo -e "\nDatastore 2 (ISO Images):\n"
-	$ssh root@$esx_server "cd /vmfs/volumes && ls -hC datastore2/*.iso"
+	echo -e "\nPowerstate\tVMID\tVM Label\t\t\t\tConfig file"
+	echo -e "----------\t----\t--------\t\t\t\t-----------"
+	allvms=`$ssh root@$esx_server "vim-cmd vmsvc/getallvms"`
+	tempfile=/tmp/vmlist-control-`date +%s`-$RANDOM
+	echo "$allvms" | sed '1d;s/\.vmx\s.*vmx-[0-9]*/\.vmx/g' | sort -n  > $tempfile
+	while read line
+	do
+	
+#More straightforward solution but it's too slow:(
+#	 lvmid=`echo $line | awk '/[0-9]/ {print $1}'`
+#	 pwstate=`$ssh root@$esx_server "vim-cmd vmsvc/power.getstate $lvmid | tail -1" < /dev/null`
+
+#Faster one
+	 name=`echo $line | grep -o "\ [A-Za-z0-9].*\[" | sed 's/\s*\[//;s/^\s//'`
+	 $ssh root@$esx_server "/usr/lib/vmware/bin/vmdumper  -l| grep \"$name\" > /dev/null" < /dev/null 
+	 pwstate=$?
+	 if [ $pwstate -eq 0 ]
+	 then
+	 finallist=$finallist"\033[32mPowered on\033[0m\t$line\n"
+	 else
+	 finallist=$finallist"\033[31mPowered off\033[0m\t$line\n"
+	 fi 
+	 
+	done < $tempfile
+	finallist=`echo "$finallist"|sort`
+	echo -e "$finallist"
+	rm $tempfile
+ #       echo -e "\nDatastore 2 (ISO Images):\n"
+#	$ssh root@$esx_server "cd /vmfs/volumes && ls -hC datastore2/*.iso"
         } 
 
 usage() {
@@ -188,7 +213,7 @@ remove() {
 }
 
 powerstate(){
-	pwstate=`$ssh root$esx_server "vim-cmd vmsvc/power.getstate $1"| tail -1`
+	pwstate=`$ssh root@$esx_server "vim-cmd vmsvc/power.getstate $1"| tail -1`
 }
 
 addvnc() {
@@ -255,7 +280,7 @@ done
 ### iso file check
 if [ ! -z $iso ] 
 then	ssh root@$esx_server test -e /vmfs/volumes/$iso
-	[ $? -eq 1 ] && echo "ISO image does not exist on Datastore" && cleanup
+	[ $? -eq 1 ] && echo "ISO image does not exist on datastore" && cleanup
 fi
 
 if [[ ! -z $create_new  && -n $esx_server && -n $ram && -n $disk && -n $name ]]
