@@ -219,7 +219,7 @@ powerstate(){
 addvnc() {
   vmid2name $1
    vmid2datastore $1
-    vnc_check=`$ssh root$esx_server "cat 'vmfs/volumes/$datastore/$name/$name.vmx' | grep \"RemoteDisplay.vnc.enabled = True\""`
+    vnc_check=`$ssh root$esx_server "egrep 'RemoteDisplay.vnc.enabled = \"?True\"?' 'vmfs/volumes/$datastore/$name/$name.vmx'"`
     if [ ! -z "$vnc_check" ]
     then echo "VNC is already enabled on this machine"
     else
@@ -234,7 +234,7 @@ addvnc() {
 vnc_config="RemoteDisplay.vnc.enabled = \"True\"
 RemoteDisplay.vnc.port = \"$vnc_port\"
 RemoteDisplay.vnc.password = \"$vnc_password\""
-    $ssh root$esx_server "echo \"$vnc_config\" >> 'vmfs/volumes/$datastore/$name/$name.vmx' && vim-cmd vmsvc/reload $1"
+    $ssh root$esx_server "echo -e \"$vnc_config\" >> 'vmfs/volumes/$datastore/$name/$name.vmx' && vim-cmd vmsvc/reload $1"
     fi
 }
 
