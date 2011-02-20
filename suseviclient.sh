@@ -56,14 +56,16 @@ Options:
    --iso <path> to ISO image in format of <datastore>/path/to/image.iso (optional)
 -l List all guests
 --dslist List all datastores
+--dsbrowse List files on specified datastore
 --status <vmid> Get parametres of VM
 --poweron <vmid> Power On VM
    --bios Launch a VM's BIOS after start	
 --poweroff <vmid> Power Off VM
 --vnc <vmid> Connect to VM via VNC
 --addvnc <vmid> Add VNC support to an existing VM ( guest need to be restarted to take effect)
---snapshot <vmid> Make snapshot of current VM status
---revert <vmid> Revert from snapshot
+--snapshotlist <vmid> Get list of snapshots for current VM
+--snapshot <vmid> --snapname <snapshot label> Make snapshot of current VM status
+--revert <vmid> --snapname <snapshot label> Revert from snapshot
 --remove <vmid> Delete VM
 --help This help
 "
@@ -148,7 +150,7 @@ vncviewer $esx_server:$vnc_conn_port
 
 
 vnc_port(){
-vnc_port=`$ssh root@$esx_server "find /vmfs/volumes/datastore?/ -iname *.vmx -exec grep vnc\.port {} \;" | awk '{print $3}' | tail -1 | sed s/\"//g`
+vnc_port=`$ssh root@$esx_server "find /vmfs/volumes/datastore?/ -iname *.vmx -exec grep vnc\.port {} \;" | awk '{print $3}' | sed s/\"//g | sort | tail -1`
 [ -z $vnc_port ] && vnc_port="5900"
 ((vnc_port++))
 }
@@ -184,22 +186,39 @@ vnc_conn_port=`$ssh root@$esx_server "find /vmfs/volumes/datastore?/'$name' -ina
 }
 
 snapshot() {
-        echo "Please enter a snapshot name:"
-	read snap_name
-        echo "Please enter a snapshot description:"
-	read snap_desc
-	$ssh root@$esx_server "vim-cmd vmsvc/snapshot.create $1 \"$snap_name\" \"$snap_desc\" 1" 
-	
+	uniq=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1|grep 'Snapshot Name'"`
+	echo $uniq |grep -o ": $2" > /dev/null
+	if [ $? -eq 1 ]
+	then 
+	$ssh root@$esx_server "vim-cmd vmsvc/snapshot.create $1 \"$2\" \"  \" 1" > /dev/null
+	echo "Snapshot \"$2\" created"
+	else
+	echo "Snapshotname \"$2\" already exists" 
+	fi
 }
 
 revert(){
+	#vmid2name $1
+	#vmid2datastore $1
+# I know it's quite ugly, I'll optimize it later:)
+#   snaplevel=`$ssh root@$esx_server "grep displayName '/vmfs/volumes/$datastore/$name/$name.vmsd' | grep \"\"$2\"\" |egrep -o \"snapshot.?\" | grep -o '[0-9]'"`
+snaplevel=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1 | grep '$2' | egrep -o '\-*'| wc -c"`
+   
+   if [ ! $snaplevel -eq 0 ]
+   then
+   snaplevel=$(( $snaplevel/2-1)) 
+   $ssh root@$esx_server "vim-cmd vmsvc/snapshot.revert $1 suppressPowerOff $snaplevel" > /dev/null
+   echo "Reverted to snapshot: $2"
+   else
+   echo "No snapshot with specified name: $2"
+   fi
+   
+
+}
+
+snapshotlist(){
 
    $ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1"
-   echo "Please enter snapshot level for revert:"
-   read snap_level
-   echo "Please enter snapshot index for revert:"
-   read snap_index
-   $ssh root@$esx_server "vim-cmd vmsvc/snapshot.revert $1 suppressPowerOff $snap_level $snap_index"
 
 }
 
@@ -219,7 +238,7 @@ powerstate(){
 addvnc() {
   vmid2name $1
    vmid2datastore $1
-    vnc_check=`$ssh root$esx_server "egrep 'RemoteDisplay.vnc.enabled = \"?True\"?' 'vmfs/volumes/$datastore/$name/$name.vmx'"`
+    vnc_check=`$ssh root$esx_server "egrep 'RemoteDisplay.vnc.enabled = \"?True\"?' '/vmfs/volumes/$datastore/$name/$name.vmx'"`
     if [ ! -z "$vnc_check" ]
     then echo "VNC is already enabled on this machine"
     else
@@ -241,7 +260,12 @@ RemoteDisplay.vnc.password = \"$vnc_password\""
 dslist() {
  $ssh root@$esx_server "vim-cmd hostsvc/datastore/listsummary" | grep name | awk {'print $3'} | sed 's/",*//g' 	
 }
-eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: revert: remove: addvnc: bios dslist" "hcln:s:m:d:" "$@"` || usage 
+
+dsbrowse() {
+ $ssh root@$esx_server "ls -1 /vmfs/volumes/$1" 	
+}
+
+eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -264,6 +288,9 @@ do
 	     --vnc) vnc="$2";shift;;
 	     --addvnc) addvnc_vmid="$2";shift;;
 	     --dslist) dslist="1";shift;;
+	     --dsbrowse) dsbrowse="$2";shift;;
+	     --snapshotlist) snapshotlist_vmid="$2";shift;;
+	     --snapname) snapname="$2";shift;;
              -h)        ;;
 	     --help)  ;;
 	     --)        shift;break;;
@@ -303,16 +330,26 @@ if [[  -n $esx_server && ! -z $dslist ]]
 then  dslist ; cleanup
 fi
 
+#dslist execution
+if [[  -n $esx_server && ! -z $dsbrowse ]] 
+then  dsbrowse $dsbrowse ; cleanup
+fi
+
+#snapshotlist execution
+if [[  -n $esx_server && ! -z $snapshotlist_vmid ]] 
+then  snapshotlist $snapshotlist_vmid; cleanup
+fi
+
 if [[  -n $esx_server && ! -z $vnc ]] 
 then  vmid2name $vnc && get_vnc_port && vnc_connect ; cleanup
 fi
 
-if [[  -n $esx_server && ! -z $snap_vmid ]] 
-then snapshot $snap_vmid; cleanup
+if [[  -n $esx_server && ! -z $snap_vmid && ! -z $snapname ]] 
+then snapshot $snap_vmid "$snapname"; cleanup
 fi
 
-if [[  -n $esx_server && ! -z $revert_vmid ]] 
-then revert $revert_vmid; cleanup
+if [[  -n $esx_server && ! -z $revert_vmid  && ! -z $snapname ]] 
+then revert $revert_vmid $snapname; cleanup
 fi
 
 if [[  -n $esx_server && ! -z $remove_vmid ]]
