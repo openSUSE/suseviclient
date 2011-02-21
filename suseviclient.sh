@@ -216,6 +216,26 @@ snaplevel=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1 | grep '$2' | eg
 
 }
 
+snapshotremove(){
+	
+if [ ! -z $3 ]
+then
+$ssh root@$esx_server "vim-cmd vmsvc/snapshot.removeall $1"
+else
+snaplevel=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1 | grep '$2' | egrep -o '\-*'| wc -c"`
+   
+   if [ ! $snaplevel -eq 0 ]
+   then
+   snaplevel=$(( $snaplevel/2-1)) 
+   $ssh root@$esx_server "vim-cmd vmsvc/snapshot.remove $1 1 $snaplevel" > /dev/null
+   echo "Removed snapshot: $2"
+   else
+   echo "No snapshot with specified name: $2"
+   fi
+fi   
+
+}
+
 snapshotlist(){
 
    $ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1"
@@ -265,7 +285,7 @@ dsbrowse() {
  $ssh root@$esx_server "ls -1 /vmfs/volumes/$1" 	
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname:" "hcln:s:m:d:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -291,6 +311,8 @@ do
 	     --dsbrowse) dsbrowse="$2";shift;;
 	     --snapshotlist) snapshotlist_vmid="$2";shift;;
 	     --snapname) snapname="$2";shift;;
+	     --snapshotremove) snapshotremove_vmid="$2";shift;;
+	     --all) all="1";snapname="anything";shift;;
              -h)        ;;
 	     --help)  ;;
 	     --)        shift;break;;
@@ -338,6 +360,11 @@ fi
 #snapshotlist execution
 if [[  -n $esx_server && ! -z $snapshotlist_vmid ]] 
 then  snapshotlist $snapshotlist_vmid; cleanup
+fi
+
+#snapshotremove execution
+if [[  -n $esx_server && ! -z $snapshotremove_vmid && ! -z $snapname ]] 
+then  snapshotremove $snapshotremove_vmid "$snapname" $all; cleanup
 fi
 
 if [[  -n $esx_server && ! -z $vnc ]] 
