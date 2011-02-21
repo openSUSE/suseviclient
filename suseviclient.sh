@@ -13,6 +13,108 @@ cleanup() {
 [ ! -z $MASTERPID ] && kill $MASTERPID && exit
 }
 
+#studio 
+
+rdom () { local IFS=\> ; read -d \< E C ;}
+
+appliances() {
+tempfile=/tmp/applist-`date +%s`-$RANDOM
+curl -s -u "$1":"$2" "http://susestudio.com/api/v1/user/appliances" > $tempfile
+while rdom; do
+   if [[ $E = id ]]; then
+	if [[ -z $flag ]]; then  
+	echo "ApplianceID: "$C
+        flag=1
+        else 
+	#echo "ParentID:"$C
+	unset flag
+	fi	
+   fi
+   if [[ $E = build ]]; then
+   flag=1
+   fi
+   if [[ $E = name ]]; then
+	if [[ -z $nflag ]]; then
+	echo "Appliance Name: "$C
+	nflag=1
+	else
+	echo "System template: "$C
+	unset nflag
+	fi
+   fi
+   if [[ $E = appliance ]]; then
+	   echo -e "---------------"
+
+   fi
+   
+   if [[ $E = arch ]]; then
+	   echo "Architecture: "$C
+
+   fi
+   
+   if [[ $E = edit_url ]]; then
+	   echo "URL: "$C
+
+   fi
+   
+  if [[ $E = estimated_raw_size ]]; then
+	   echo "Size: "$C
+  fi
+  
+  if [[ $E = estimated_compressed_size ]]; then
+	   echo "Compressed size: "$C
+  fi
+done < $tempfile
+rm -f $tempfile
+unset tempfile
+}
+
+buildimage() {
+tempfile=/tmp/buildimage-`date +%s`-$RANDOM
+curl -s -u "$1":"$2" -XPOST "http://susestudio.com/api/v1/user/running_builds?appliance_id=$3&force=1&image_type=oemiso" > $tempfile
+while rdom; do
+if [[ $E = id ]]; then
+echo "Build started with id "$C
+fi
+done < $tempfile
+
+rm $tempfile
+unset tempfile
+
+}
+
+checkimage() {
+tempfile=/tmp/checkimage-`date +%s`-$RANDOM	
+curl -s -u "$1":"$2" "http://susestudio.com/api/v1/user/appliances/$3" > $tempfile
+while rdom; do
+if [[ $E = image_type ]]; then
+ if [[ $C = oemiso ]]; then
+ type="oemiso"
+ fi
+fi
+
+if [[ $E = download_url && type -eq "oemiso" ]]; then
+ oemisolink="$C"
+ unset type
+ 
+fi
+
+done < $tempfile
+rm $tempfile
+unset tempfile
+if [[ -z $oemisolink ]]; then 
+echo "Image is not ready"; cleanup
+else echo "Image is ready, we can upload it to server..."
+fi
+}
+
+imageupload() {
+
+curl -u "$1":"$2" "$oemisolink" | $ssh root@$esx_server "cat > /vmfs/volumes/datastore1/${name// /\ }/studio.iso" && echo "Image uploaded"
+	
+}
+
+#vmware 
 initial_info() {
 	echo -e "\nPowerstate\tVMID\tVM Label\t\t\t\tConfig file"
 	echo -e "----------\t----\t--------\t\t\t\t-----------"
@@ -54,6 +156,7 @@ Options:
    -m <size> of RAM in megabytes
    -d <size> of hard disk (M/G)
    --iso <path> to ISO image in format of <datastore>/path/to/image.iso (optional)
+   --studio <appliance_id> Deploy appliance from SUSE Studio server (optional), see studio options below
 -l List all guests
 --dslist List all datastores
 --dsbrowse List files on specified datastore
@@ -67,6 +170,11 @@ Options:
 --snapshot <vmid> --snapname <snapshot label> Make snapshot of current VM status
 --revert <vmid> --snapname <snapshot label> Revert from snapshot
 --remove <vmid> Delete VM
+
+--apiuser your SUSE Studio user (see http://susestudio.com/user/show_api_key )
+--apikey  your SUSE Studio api key
+--appliances Get appliance list from SUSE Studio
+--buildimage <appliance_id> Build oemiso of specified appliance for deployment 
 --help This help
 "
 }
@@ -80,6 +188,16 @@ read name
 }
 
 register_vm () {
+if [[ ! -z $studio ]]; then
+	if [[ ! -z $apiuser && ! -z apikey ]];then
+	checkimage "$apiuser" "$apikey" "$studio"; 
+	$ssh root@$esx_server "mkdir \"/vmfs/volumes/datastore1/$name\""
+	imageupload "$apiuser" "$apikey" ;
+	iso="datastore1/${name// /\ }/studio.iso"
+	else
+	echo "Please provide studio apiuser and apikey"; exit
+	fi
+fi
 config="
 config.version = \"8\"
 virtualHW.version= \"7\"
@@ -103,12 +221,14 @@ RemoteDisplay.vnc.port = \"$vnc_port\"
 RemoteDisplay.vnc.password = \"$vnc_password\""
 
 echo "$config" > "/tmp/$name.vmx"
-$ssh root@$esx_server "mkdir \"/vmfs/volumes/datastore1/$name\" && 
+$ssh root@$esx_server "[[ ! -d  \"/vmfs/volumes/datastore1/$name\" ]] &&  mkdir \"/vmfs/volumes/datastore1/$name\""
+$ssh root@$esx_server " 
 cd /vmfs/volumes/datastore1/${name// /\ } && 
 vmkfstools -c $disk -a lsilogic '$name.vmdk' "
 $scp "/tmp/$name.vmx" root@$esx_server:"/vmfs/volumes/datastore1/${name// /\ }/" 2>&1>/dev/null
 rm -f "/tmp/$name.vmx"
 $ssh root@$esx_server "vim-cmd solo/registervm /vmfs/volumes/datastore1/${name// /\ }/${name// /\ }.vmx"
+echo "Virtual machine \"$name\" created"
 }
 
 
@@ -285,7 +405,7 @@ dsbrowse() {
  $ssh root@$esx_server "ls -1 /vmfs/volumes/$1" 	
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname:" "hcln:s:m:d:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: studio:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -294,7 +414,7 @@ do
              -s)  esx_server=$2;shift;;
              -m)  ram=$2;shift;;
 	     -d)  disk=$2;shift;;
-	     -n) name=$2; echo $name;shift;;
+	     -n) name=$2;shift;;
 	     -c)  create_new="1";;
 	     -l)  list="1";;
 	     --iso) iso="$2";shift;;
@@ -313,6 +433,11 @@ do
 	     --snapname) snapname="$2";shift;;
 	     --snapshotremove) snapshotremove_vmid="$2";shift;;
 	     --all) all="1";snapname="anything";shift;;
+	     --apiuser) apiuser="$2";shift;;
+	     --apikey) apikey="$2";shift;;
+	     --appliances) appliances="1";shift;;
+	     --buildimage) buildimage="$2";shift;;
+	     --studio) studio="$2";shift;;
              -h)        ;;
 	     --help)  ;;
 	     --)        shift;break;;
@@ -385,6 +510,16 @@ fi
 
 if [[  -n $esx_server && ! -z $addvnc_vmid ]]
 then addvnc $addvnc_vmid; cleanup
+fi
+
+#studio
+
+if [[ -n $apiuser &&  -n $apikey && ! -z $appliances ]]
+then appliances "$apiuser" "$apikey";  exit
+fi
+
+if [[ -n $apiuser &&  -n $apikey && ! -z $buildimage ]]
+then buildimage "$apiuser" "$apikey" "$buildimage"; exit
 fi
 
 cleanup
