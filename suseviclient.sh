@@ -88,12 +88,12 @@ tempfile=/tmp/checkimage-`date +%s`-$RANDOM
 curl -s -u "$1":"$2" "http://susestudio.com/api/v1/user/appliances/$3" > $tempfile
 while rdom; do
 if [[ $E = image_type ]]; then
- if [[ $C = oemiso ]]; then
- type="oemiso"
+ if [[ $C = "oemiso" ]]; then
+ type=$C
  fi
 fi
 
-if [[ $E = download_url && type -eq "oemiso" ]]; then
+if [[ $E = download_url && $type = "oemiso" ]]; then
  oemisolink="$C"
  unset type
  
@@ -130,7 +130,7 @@ initial_info() {
 
 #Faster one
 	 name=`echo $line | grep -o "\ [A-Za-z0-9].*\[" | sed 's/\s*\[//;s/^\s//'`
-	 $ssh root@$esx_server "/usr/lib/vmware/bin/vmdumper  -l| grep \"$name\" > /dev/null" < /dev/null 
+	 $ssh root@$esx_server "/usr/lib/vmware/bin/vmdumper  -l| grep \"${name// /\ }.vmx\" > /dev/null" < /dev/null 
 	 pwstate=$?
 	 if [ $pwstate -eq 0 ]
 	 then
