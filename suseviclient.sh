@@ -265,7 +265,7 @@ ssh root@$esx_server "vim-cmd vmsvc/power.off $1"
 
 vnc_connect(){
 get_vnc_port
-vncviewer $esx_server:$vnc_conn_port
+vncviewer -encodings 'zlib hextile copyrect' $esx_server:$vnc_conn_port
 }
 
 
