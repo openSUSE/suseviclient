@@ -405,6 +405,14 @@ dsbrowse() {
  $ssh root@$esx_server "ls -1 /vmfs/volumes/$1/" 	
 }
 
+before_filter() {
+
+remainder=$(($ram%4))
+	if [[ $remainder -ne 0 ]]; then
+		echo "Error: Memory size $ram not a multiple of 4"; exit
+	fi
+}
+
 eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: studio:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
@@ -460,6 +468,7 @@ fi
 if [[ ! -z $create_new  && -n $esx_server && -n $ram && -n $disk && -n $name ]]
 	then
 #	askname
+	before_filter
 	vnc_pass
 	vnc_port
 	register_vm	
