@@ -402,7 +402,7 @@ dslist() {
 }
 
 dsbrowse() {
- $ssh root@$esx_server "ls -1 /vmfs/volumes/$1" 	
+ $ssh root@$esx_server "ls -1 /vmfs/volumes/$1/" 	
 }
 
 eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: studio:" "hcln:s:m:d:" "$@"` || usage 
