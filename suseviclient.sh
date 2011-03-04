@@ -19,7 +19,8 @@ rdom () { local IFS=\> ; read -d \< E C ;}
 
 appliances() {
 tempfile=/tmp/applist-`date +%s`-$RANDOM
-curl -s -u "$1":"$2" "http://susestudio.com/api/v1/user/appliances" > $tempfile
+curl -s -u "$1":"$2" "http://$studioserver/api/v1/user/appliances" > $tempfile
+if [[ $? != 0 ]];then echo "Can't connect to sepcified studio server";rm -f $tempfile; exit; fi
 while rdom; do
    if [[ $E = id ]]; then
 	if [[ -z $flag ]]; then  
@@ -64,6 +65,11 @@ while rdom; do
   if [[ $E = estimated_compressed_size ]]; then
 	   echo "Compressed size: "$C
   fi
+  
+  if [[ $E = message ]]; then
+	   echo $C
+  fi
+  
 done < $tempfile
 rm -f $tempfile
 unset tempfile
@@ -71,11 +77,17 @@ unset tempfile
 
 buildimage() {
 tempfile=/tmp/buildimage-`date +%s`-$RANDOM
-curl -s -u "$1":"$2" -XPOST "http://susestudio.com/api/v1/user/running_builds?appliance_id=$3&force=1&image_type=oemiso" > $tempfile
+curl -s -u "$1":"$2" -XPOST "http://$studioserver/api/v1/user/running_builds?appliance_id=$3&force=1&image_type=oemiso" > $tempfile
+if [[ $? != 0 ]];then echo "Can't connect to sepcified studio server";rm -f $tempfile; exit; fi
 while rdom; do
 if [[ $E = id ]]; then
 echo "Build started with id "$C
 fi
+
+if [[ $E = message ]]; then
+   echo $C
+fi
+
 done < $tempfile
 
 rm $tempfile
@@ -85,7 +97,7 @@ unset tempfile
 
 checkimage() {
 tempfile=/tmp/checkimage-`date +%s`-$RANDOM	
-curl -s -u "$1":"$2" "http://susestudio.com/api/v1/user/appliances/$3" > $tempfile
+curl -s -u "$1":"$2" "http://$studioserver/api/v1/user/appliances/$3" > $tempfile
 while rdom; do
 if [[ $E = image_type ]]; then
  if [[ $C = "oemiso" ]]; then
@@ -171,6 +183,7 @@ Options:
 --revert <vmid> --snapname <snapshot label> Revert from snapshot
 --remove <vmid> Delete VM
 
+--studioserver Custom suse studio server ( if option is ommited susestudio.com is a default)
 --apiuser your SUSE Studio user (see http://susestudio.com/user/show_api_key )
 --apikey  your SUSE Studio api key
 --appliances Get appliance list from SUSE Studio
@@ -402,6 +415,7 @@ dslist() {
 }
 
 dsbrowse() {
+	
  $ssh root@$esx_server "ls -1 /vmfs/volumes/$1/" 	
 }
 
@@ -413,7 +427,7 @@ remainder=$(($ram%4))
 	fi
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: studio:" "hcln:s:m:d:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: studio: studioserver:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -443,9 +457,10 @@ do
 	     --all) all="1";snapname="anything";shift;;
 	     --apiuser) apiuser="$2";shift;;
 	     --apikey) apikey="$2";shift;;
-	     --appliances) appliances="1";shift;;
+	     --appliances) appliances="1";;
 	     --buildimage) buildimage="$2";shift;;
 	     --studio) studio="$2";shift;;
+	     --studioserver) studioserver="$2";shift;;
              -h)        ;;
 	     --help)  ;;
 	     --)        shift;break;;
@@ -522,7 +537,7 @@ then addvnc $addvnc_vmid; cleanup
 fi
 
 #studio
-
+studioserver=${studioserver:-susestudio.com} #susestudio.com is default server
 if [[ -n $apiuser &&  -n $apikey && ! -z $appliances ]]
 then appliances "$apiuser" "$apikey";  exit
 fi
