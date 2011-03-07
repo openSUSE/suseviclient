@@ -95,6 +95,39 @@ unset tempfile
 
 }
 
+buildstatus() {
+
+tempfile=/tmp/buildimage-`date +%s`-$RANDOM
+curl -s -u "$1":"$2" "http://$studioserver/api/v1/user/running_builds?appliance_id=$3" > $tempfile
+if [[ $? != 0 ]];then echo "Can't connect to sepcified studio server";rm -f $tempfile; exit; fi
+while rdom; do
+if [[ $E = id ]]; then
+echo "Build id: "$C
+fi
+
+if [[ $E = state ]]; then
+   echo "State: "$C
+fi
+
+if [[ $E = percent ]]; then
+   echo "Percents done: "$C
+fi
+
+if [[ $E = time_elapsed ]]; then
+   echo "Time elapsed: $(( $C/60 )) minutes"
+fi
+
+if [[ $E = message ]]; then
+   echo $C
+fi
+
+done < $tempfile
+
+rm $tempfile
+unset tempfile
+	
+}
+
 checkimage() {
 tempfile=/tmp/checkimage-`date +%s`-$RANDOM	
 curl -s -u "$1":"$2" "http://$studioserver/api/v1/user/appliances/$3" > $tempfile
@@ -187,7 +220,8 @@ Options:
 --apiuser your SUSE Studio user (see http://susestudio.com/user/show_api_key )
 --apikey  your SUSE Studio api key
 --appliances Get appliance list from SUSE Studio
---buildimage <appliance_id> Build oemiso of specified appliance for deployment 
+--buildimage <appliance_id> Build Preload ISO of specified appliance for deployment 
+--buildstatus <appliance_id> Get info on running builds of specified appliance
 --help This help
 "
 }
@@ -427,7 +461,7 @@ remainder=$(($ram%4))
 	fi
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: studio: studioserver:" "hcln:s:m:d:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -459,6 +493,7 @@ do
 	     --apikey) apikey="$2";shift;;
 	     --appliances) appliances="1";;
 	     --buildimage) buildimage="$2";shift;;
+	     --buildstatus) buildstatus="$2";shift;;
 	     --studio) studio="$2";shift;;
 	     --studioserver) studioserver="$2";shift;;
              -h)        ;;
@@ -544,6 +579,10 @@ fi
 
 if [[ -n $apiuser &&  -n $apikey && ! -z $buildimage ]]
 then buildimage "$apiuser" "$apikey" "$buildimage"; exit
+fi
+
+if [[ -n $apiuser &&  -n $apikey && ! -z $buildstatus ]]
+then buildstatus "$apiuser" "$apikey" "$buildstatus"; exit
 fi
 
 cleanup
