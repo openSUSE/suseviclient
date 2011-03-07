@@ -118,7 +118,7 @@ if [[ $E = time_elapsed ]]; then
 fi
 
 if [[ $E = message ]]; then
-   echo $C
+   echo "Current action: "$C
 fi
 
 done < $tempfile
@@ -240,7 +240,7 @@ if [[ ! -z $studio ]]; then
 	checkimage "$apiuser" "$apikey" "$studio"; 
 	$ssh root@$esx_server "mkdir \"/vmfs/volumes/datastore1/$name\""
 	imageupload "$apiuser" "$apikey" ;
-	iso="datastore1/${name// /\ }/studio.iso"
+	iso="datastore1/$name/studio.iso"
 	else
 	echo "Please provide studio apiuser and apikey"; exit
 	fi
