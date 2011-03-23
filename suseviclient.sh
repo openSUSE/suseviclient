@@ -358,7 +358,7 @@ snapshot() {
 	if [ $? -eq 1 ]
 	then 
 	$ssh root@$esx_server "vim-cmd vmsvc/snapshot.create $1 \"$2\" \"  \" 1" > /dev/null
-	echo "Snapshot \"$2\" created"
+	echo -e "Snapshot \"$2\" creation process started.\nPlease check its status with --snapshotlist option after a few minutes."
 	else
 	echo "Snapshotname \"$2\" already exists" 
 	fi
