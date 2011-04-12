@@ -78,7 +78,7 @@ unset tempfile
 buildimage() {
 tempfile=/tmp/buildimage-`date +%s`-$RANDOM
 curl -s -u "$1":"$2" -XPOST "http://$studioserver/api/v1/user/running_builds?appliance_id=$3&force=1&image_type=oemiso" > $tempfile
-if [[ $? != 0 ]];then echo "Can't connect to sepcified studio server";rm -f $tempfile; exit; fi
+if [[ $? != 0 ]];then echo "Can't connect to specified studio server";rm -f $tempfile; exit; fi
 while rdom; do
 if [[ $E = id ]]; then
 echo "Build started with id "$C
@@ -99,7 +99,7 @@ buildstatus() {
 
 tempfile=/tmp/buildimage-`date +%s`-$RANDOM
 curl -s -u "$1":"$2" "http://$studioserver/api/v1/user/running_builds?appliance_id=$3" > $tempfile
-if [[ $? != 0 ]];then echo "Can't connect to sepcified studio server";rm -f $tempfile; exit; fi
+if [[ $? != 0 ]];then echo "Can't connect to specified studio server";rm -f $tempfile; exit; fi
 while rdom; do
 if [[ $E = id ]]; then
 echo "Build id: "$C
@@ -188,8 +188,8 @@ initial_info() {
 	finallist=`echo "$finallist"|sort`
 	echo -e "$finallist"
 	rm $tempfile
- #       echo -e "\nDatastore 2 (ISO Images):\n"
-#	$ssh root@$esx_server "cd /vmfs/volumes && ls -hC datastore2/*.iso"
+
+
         } 
 
 usage() {
@@ -560,7 +560,7 @@ then snapshot $snap_vmid "$snapname"; cleanup
 fi
 
 if [[  -n $esx_server && ! -z $revert_vmid  && ! -z $snapname ]] 
-then revert $revert_vmid $snapname; cleanup
+then revert $revert_vmid "$snapname"; cleanup
 fi
 
 if [[  -n $esx_server && ! -z $remove_vmid ]]
