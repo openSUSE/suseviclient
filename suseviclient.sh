@@ -290,7 +290,7 @@ name=`$ssh root@$esx_server "vim-cmd vmsvc/get.summary $1 | grep name " | awk 'B
 }
 
 vmid2datastore(){
-	datastore=`$ssh root@$esx_server "vim-cmd vmsvc/get.datastores $1" | head -1| awk '{print $2}'`
+	datastore=$($ssh root@$esx_server "vim-cmd vmsvc/get.config $1 | grep vmPathName| grep -o '\"\[.*\]' |egrep -o '[A-Za-z0-9-]+'")
 }
 
 power_on() {
