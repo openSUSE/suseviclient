@@ -263,9 +263,7 @@ ethernet0.present= \"true\"
 ethernet0.startConnected = \"true\"
 ethernet0.virtualDev = \"e1000\"
 ethernet0.networkName = \"VM Network\"
-RemoteDisplay.vnc.enabled = \"True\"
-RemoteDisplay.vnc.port = \"$vnc_port\"
-RemoteDisplay.vnc.password = \"$vnc_password\""
+${vnc_config}"
 
 echo "$config" > "/tmp/$name.vmx"
 $ssh root@$esx_server "[[ ! -d  \"/vmfs/volumes/datastore1/$name\" ]] &&  mkdir \"/vmfs/volumes/datastore1/$name\""
@@ -312,7 +310,7 @@ ssh root@$esx_server "vim-cmd vmsvc/power.off $1"
 
 vnc_connect(){
 get_vnc_port
-vncviewer -encodings 'zlib hextile copyrect' $esx_server:$vnc_conn_port
+vncviewer -encodings 'hextile zlib copyrect' $esx_server:$vnc_conn_port
 }
 
 
@@ -422,6 +420,17 @@ powerstate(){
 	pwstate=`$ssh root@$esx_server "vim-cmd vmsvc/power.getstate $1"| tail -1`
 }
 
+vnc_conf(){
+			if [ -n "$vnc_password" ] 
+			then
+				vnc_config="RemoteDisplay.vnc.enabled = \"True\"
+RemoteDisplay.vnc.port = \"$vnc_port\"
+RemoteDisplay.vnc.password = \"$vnc_password\""
+			else
+				vnc_config="RemoteDisplay.vnc.enabled = \"True\"
+RemoteDisplay.vnc.port = \"$vnc_port\""
+		fi
+}
 addvnc() {
   vmid2name $1
    vmid2datastore $1
@@ -435,11 +444,9 @@ addvnc() {
     echo "Please power off this VM before adding VNC support"; cleanup; 
     fi   
    vnc_port
-    vnc_pass
- 
-vnc_config="RemoteDisplay.vnc.enabled = \"True\"
-RemoteDisplay.vnc.port = \"$vnc_port\"
-RemoteDisplay.vnc.password = \"$vnc_password\""
+   vnc_pass
+   vnc_conf
+
     $ssh root$esx_server "echo -e \"$vnc_config\" >> 'vmfs/volumes/$datastore/$name/$name.vmx' && vim-cmd vmsvc/reload $1"
     fi
 }
@@ -521,6 +528,7 @@ if [[ ! -z $create_new  && -n $esx_server && -n $ram && -n $disk && -n $name ]]
 	before_filter
 	vnc_pass
 	vnc_port
+	vnc_conf
 	register_vm	
 	cleanup
 	fi
