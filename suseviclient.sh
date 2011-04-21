@@ -1,5 +1,12 @@
 #!/bin/bash
 
+#kinda config section
+
+#Default datastore to work with
+datastore="datastore1"
+
+# end of config section
+
 # setting SSH Control Master
 control_master() {
 CONTROL=/tmp/ssh-control-`date +%s`-$RANDOM
@@ -155,7 +162,7 @@ fi
 
 imageupload() {
 
-curl -u "$1":"$2" "$oemisolink" | $ssh root@$esx_server "cat > /vmfs/volumes/datastore1/${name// /\ }/studio.iso" && echo "Image uploaded"
+curl -u "$1":"$2" "$oemisolink" | $ssh root@$esx_server "cat > /vmfs/volumes/$datastore/${name// /\ }/studio.iso" && echo "Image uploaded"
 	
 }
 
@@ -175,7 +182,10 @@ initial_info() {
 
 #Faster one
 	 name=`echo $line | grep -o "\ [A-Za-z0-9].*\[" | sed 's/\s*\[//;s/^\s//'`
-	 $ssh root@$esx_server "/usr/lib/vmware/bin/vmdumper  -l| grep \"${name// /\ }.vmx\" > /dev/null" < /dev/null 
+	 resolved_ds=$(echo $line| grep -o '\[.*\]' |egrep -o '[A-Za-z0-9-]+')
+	 resolved_ds=$($ssh root@$esx_server "cd /vmfs/volumes/$resolved_ds;pwd -P"< /dev/null) 
+	 
+	 $ssh root@$esx_server "/usr/lib/vmware/bin/vmdumper  -l| grep \"$resolved_ds/${name// /\ }/${name// /\ }.vmx\" > /dev/null" < /dev/null 
 	 pwstate=$?
 	 if [ $pwstate -eq 0 ]
 	 then
@@ -200,6 +210,7 @@ Options:
    -n <label> for the new virtual machine
    -m <size> of RAM in megabytes
    -d <size> of hard disk (M/G)
+   --ds <datastore name> where VM will be created (optional)
    --iso <path> to ISO image in format of <datastore>/path/to/image.iso (optional)
    --studio <appliance_id> Deploy appliance from SUSE Studio server (optional), see studio options below
 -l List all guests
@@ -238,9 +249,9 @@ register_vm () {
 if [[ ! -z $studio ]]; then
 	if [[ ! -z $apiuser && ! -z apikey ]];then
 	checkimage "$apiuser" "$apikey" "$studio"; 
-	$ssh root@$esx_server "mkdir \"/vmfs/volumes/datastore1/$name\""
+	$ssh root@$esx_server "mkdir \"/vmfs/volumes/$datastore/$name\""
 	imageupload "$apiuser" "$apikey" ;
-	iso="datastore1/$name/studio.iso"
+	iso="$datastore/$name/studio.iso"
 	else
 	echo "Please provide studio apiuser and apikey"; exit
 	fi
@@ -266,13 +277,13 @@ ethernet0.networkName = \"VM Network\"
 ${vnc_config}"
 
 echo "$config" > "/tmp/$name.vmx"
-$ssh root@$esx_server "[[ ! -d  \"/vmfs/volumes/datastore1/$name\" ]] &&  mkdir \"/vmfs/volumes/datastore1/$name\""
+$ssh root@$esx_server "[[ ! -d  \"/vmfs/volumes/$datastore/$name\" ]] &&  mkdir \"/vmfs/volumes/$datastore/$name\""
 $ssh root@$esx_server " 
-cd /vmfs/volumes/datastore1/${name// /\ } && 
+cd /vmfs/volumes/$datastore/${name// /\ } && 
 vmkfstools -c $disk -a lsilogic '$name.vmdk' "
-$scp "/tmp/$name.vmx" root@$esx_server:"/vmfs/volumes/datastore1/${name// /\ }/" 2>&1>/dev/null
+$scp "/tmp/$name.vmx" root@$esx_server:"/vmfs/volumes/$datastore/${name// /\ }/" 2>&1>/dev/null
 rm -f "/tmp/$name.vmx"
-$ssh root@$esx_server "vim-cmd solo/registervm /vmfs/volumes/datastore1/${name// /\ }/${name// /\ }.vmx"
+$ssh root@$esx_server "vim-cmd solo/registervm /vmfs/volumes/$datastore/${name// /\ }/${name// /\ }.vmx"
 echo "Virtual machine \"$name\" created"
 }
 
@@ -315,7 +326,18 @@ vncviewer -encodings 'hextile zlib copyrect' $esx_server:$vnc_conn_port
 
 
 vnc_port(){
-vnc_port=`$ssh root@$esx_server "find /vmfs/volumes/datastore?/ -iname *.vmx -exec grep vnc\.port {} \;" | awk '{print $3}' | sed s/\"//g | sort | tail -1`
+tempfile=/tmp/dslist-`date +%s`-$RANDOM
+
+$ssh root$esx_server "vim-cmd  vmsvc/getallvms| grep -o '\[.*\]' |egrep -o '[A-Za-z0-9-]+' |sort |uniq" > $tempfile
+
+while read line 
+do
+ searchpath="${searchpath} /vmfs/volumes/$line/"
+done < $tempfile
+
+rm -f $tempfile
+
+vnc_port=`$ssh root@$esx_server "find $searchpath -iname *.vmx -exec grep vnc\.port {} \;" | awk '{print $3}' | sed s/\"//g | sort | tail -1`
 [ -z $vnc_port ] && vnc_port="5900"
 ((vnc_port++))
 }
@@ -334,7 +356,7 @@ read vncp2
 
 stty $stty_orig
 
-if [ $vncp1 = $vncp2 ];
+if [ "$vncp1" = "$vncp2" ];
 then echo "VNC password successuly changed."
           vnc_password=$vncp2
   else
@@ -346,7 +368,7 @@ fi
 
 get_vnc_port(){
 
-vnc_conn_port=`$ssh root@$esx_server "find /vmfs/volumes/datastore?/'$name' -iname \*.vmx -exec grep vnc\.port {} \;" | awk '{print $3}' | sed s/\"//g`
+vnc_conn_port=`$ssh root@$esx_server "find /vmfs/volumes/$datastore/'$name' -iname \*.vmx -exec grep vnc\.port {} \;" | awk '{print $3}' | sed s/\"//g`
 
 }
 
@@ -411,7 +433,7 @@ remove() {
         vmid2name $1
 	vmid2datastore $1
 	if [ ! -z "$name" ] 
-        then $ssh root$esx_server "vim-cmd vmsvc/unregister $1 && rm -i /vmfs/volumes/${datastore// /\ }/${name// /\ }/* && rmdir \"/vmfs/volumes/datastore1/$name/\""
+        then $ssh root$esx_server "vim-cmd vmsvc/unregister $1 && rm -i /vmfs/volumes/${datastore// /\ }/${name// /\ }/* && rmdir \"/vmfs/volumes/$datastore/$name/\""
 	else echo "Wrong vmid"
 	fi
 }
@@ -464,11 +486,22 @@ before_filter() {
 
 remainder=$(($ram%4))
 	if [[ $remainder -ne 0 ]]; then
-		echo "Error: Memory size $ram not a multiple of 4"; exit
+		echo "Error: Memory size $ram not a multiple of 4"; exit;
 	fi
+
+ssh root@$esx_server test -e "/vmfs/volumes/${datastore// /\ }"
+if [ $? -eq 1 ]; then
+	echo "Error: Datastore $datastore does not exist"; cleanup
+fi
+	
+ssh root@$esx_server test -e "/vmfs/volumes/${datastore// /\ }/${name// /\ }"
+if [ $? -eq 0 ]; then
+	echo "Error: Virtual Machine with such name already exists"; cleanup
+fi
+
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver:" "hcln:s:m:d:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="ds: iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -503,6 +536,7 @@ do
 	     --buildstatus) buildstatus="$2";shift;;
 	     --studio) studio="$2";shift;;
 	     --studioserver) studioserver="$2";shift;;
+	     --ds) datastore="$2";shift;;
              -h)        ;;
 	     --help)  ;;
 	     --)        shift;break;;
@@ -560,7 +594,7 @@ then  snapshotremove $snapshotremove_vmid "$snapname" $all; cleanup
 fi
 
 if [[  -n $esx_server && ! -z $vnc ]] 
-then  vmid2name $vnc && get_vnc_port && vnc_connect ; cleanup
+then  vmid2name $vnc && vmid2datastore $vnc && get_vnc_port && vnc_connect ; cleanup
 fi
 
 if [[  -n $esx_server && ! -z $snap_vmid && ! -z $snapname ]] 
