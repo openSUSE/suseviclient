@@ -201,7 +201,9 @@ fi
 
 imageupload() {
 
-curl -u "$1":"$2" "$oemisolink" | $ssh root@$esx_server "cat > /vmfs/volumes/$datastore/${name// /\ }/studio.iso" && echo "Image uploaded"
+#curl -u "$1":"$2" "$oemisolink" | $ssh root@$esx_server "cat > /vmfs/volumes/$datastore/${name// /\ }/studio.iso" && echo "Image uploaded"
+
+$ssh root@$esx_server "wget $oemisolink -O  /vmfs/volumes/$datastore/${name// /\ }/studio.iso" && echo "Image uploaded"
 	
 }
 
@@ -601,6 +603,8 @@ then	ssh root@$esx_server test -e /vmfs/volumes/$iso
 	[ $? -eq 1 ] && echo "ISO image does not exist on datastore" && cleanup
 fi
 
+studioserver=${studioserver:-susestudio.com} #susestudio.com is default server
+
 if [[ ! -z $create_new  && -n $esx_server && -n $ram && -n $disk && -n $name ]]
 	then
 #	askname
@@ -659,7 +663,6 @@ then addvnc $addvnc_vmid; cleanup
 fi
 
 #studio
-studioserver=${studioserver:-susestudio.com} #susestudio.com is default server
 if [[ -n $apiuser &&  -n $apikey && ! -z $appliances ]]
 then appliances "$apiuser" "$apikey";  exit
 fi
