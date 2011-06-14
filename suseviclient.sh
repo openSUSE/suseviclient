@@ -1,4 +1,23 @@
-#!/bin/bash
+#!/bin/bash - 
+#===============================================================================
+#
+#          FILE:  suseviclient.sh
+# 
+#         USAGE:  ./suseviclient.sh 
+# 
+#   DESCRIPTION: Lightweight VMware ESXi management tool
+# 
+#       OPTIONS:  ---
+#  REQUIREMENTS:  ---
+#          BUGS:  ---
+#         NOTES:  ---
+#        AUTHOR: Yury Tsarev, ytsarev@suse.cz
+#       COMPANY: SUSE
+#===============================================================================
+
+#set -o nounset                              # Treat unset variables as an error
+
+
 
 #kinda config section
 
@@ -10,7 +29,7 @@ datastore="datastore1"
 # setting SSH Control Master
 control_master() {
 CONTROL=/tmp/ssh-control-`date +%s`-$RANDOM
-ssh  -NfM -S $CONTROL root@$esx_server
+ssh  -NfM -S $CONTROL root@$esx_server || exit
 MASTERPID=`ps -aef | grep "ssh -NfM -S $CONTROL" | grep -v grep | awk {'print $2'}`
 ssh="ssh -S $CONTROL"
 scp="scp -o ControlPath=\"$CONTROL\""
@@ -20,6 +39,26 @@ cleanup() {
 [ ! -z $MASTERPID ] && kill $MASTERPID && exit
 }
 
+
+yesno (){
+while true
+do
+echo "$*"
+echo "Please answer by entering (y)es or (n)o:"
+read ANSWER
+case "$ANSWER" in
+[yY] | [yY][eE][sS] )
+return 0
+;;
+[nN] | [nN][oO] )
+return 1
+;;
+* )
+echo "I cannot understand you over here."
+;;
+esac
+done }
+
 #studio 
 
 rdom () { local IFS=\> ; read -d \< E C ;}
@@ -27,7 +66,7 @@ rdom () { local IFS=\> ; read -d \< E C ;}
 appliances() {
 tempfile=/tmp/applist-`date +%s`-$RANDOM
 curl -s -u "$1":"$2" "http://$studioserver/api/v1/user/appliances" > $tempfile
-if [[ $? != 0 ]];then echo "Can't connect to sepcified studio server";rm -f $tempfile; exit; fi
+if [[ $? != 0 ]];then echo "Can't connect to specified studio server";rm -f $tempfile; exit; fi
 while rdom; do
    if [[ $E = id ]]; then
 	if [[ -z $flag ]]; then  
@@ -295,7 +334,9 @@ vmid=$($ssh root@$esx_server "vim-cmd vmsvc/getallvms | grep '$name' | awk '{pri
 
 vmid2name(){
 name=`$ssh root@$esx_server "vim-cmd vmsvc/get.summary $1 | grep name " | awk 'BEGIN { FS="\""; } { print $2; }'| cut -c 1-32`
-
+if [ -z $name ]; then
+ return 1
+fi
 }
 
 vmid2datastore(){
@@ -357,7 +398,7 @@ read vncp2
 stty $stty_orig
 
 if [ "$vncp1" = "$vncp2" ];
-then echo "VNC password successuly changed."
+then echo "VNC password successfuly changed."
           vnc_password=$vncp2
   else
 	  echo "Passwords do not match"
@@ -430,11 +471,15 @@ snapshotlist(){
 }
 
 remove() {
-        vmid2name $1
-	vmid2datastore $1
-	if [ ! -z "$name" ] 
-        then $ssh root$esx_server "vim-cmd vmsvc/unregister $1 && rm -i /vmfs/volumes/${datastore// /\ }/${name// /\ }/* && rmdir \"/vmfs/volumes/$datastore/$name/\""
-	else echo "Wrong vmid"
+        vmid2name $1 || exit
+#	vmid2datastore $1
+#	if [ ! -z "$name" ] 
+#        then $ssh root$esx_server "vim-cmd vmsvc/unregister $1 && rm -i /vmfs/volumes/${datastore// /\ }/${name// /\ }/* && rmdir \"/vmfs/volumes/$datastore/$name/\""
+#	else echo "Wrong vmid"
+#	fi
+	if yesno "Do you really want to delete $name ?" ; then
+		
+	$ssh root$esx_server "vim-cmd vmsvc/destroy $1" && echo "$name virtual machine removed"
 	fi
 }
 
@@ -514,7 +559,7 @@ do
 	     -c)  create_new="1";;
 	     -l)  list="1";;
 	     --iso) iso="$2";shift;;
-	     --status) ssh root@$esx_server "vim-cmd vmsvc/get.summary $2" ;shift; exit;;
+	     --status) ssh root@$esx_server "vim-cmd vmsvc/get.summary $2"| grep -E '(powerState|toolsStatus|hostName|ipAddress|name =|vmPathName|memorySizeMB|guestMemoryUsage|hostMemoryUsage)' ;shift; exit;;
 	     --bios) bios_once="1";shift;;
 	     --poweron) power_on_vmid=$2;shift;;
 	     --poweroff) power_off $2;shift;;
