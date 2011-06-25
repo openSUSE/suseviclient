@@ -24,6 +24,8 @@
 #Default datastore to work with
 datastore="datastore1"
 
+. ~/.suseviclientrc
+
 # end of config section
 
 # setting SSH Control Master
@@ -122,8 +124,9 @@ unset tempfile
 }
 
 buildimage() {
+#studio_before_filter
 tempfile=/tmp/buildimage-`date +%s`-$RANDOM
-curl -s -u "$1":"$2" -XPOST "http://$studioserver/api/v1/user/running_builds?appliance_id=$3&force=1&image_type=oemiso" > $tempfile
+curl -s -u "$1":"$2" -XPOST "http://$studioserver/api/v1/user/running_builds?appliance_id=$3&force=1&image_type=$format" > $tempfile
 if [[ $? != 0 ]];then echo "Can't connect to specified studio server";rm -f $tempfile; exit; fi
 while rdom; do
 if [[ $E = id ]]; then
@@ -178,22 +181,37 @@ checkimage() {
 tempfile=/tmp/checkimage-`date +%s`-$RANDOM	
 curl -s -u "$1":"$2" "http://$studioserver/api/v1/user/appliances/$3" > $tempfile
 while rdom; do
+if [[ $E = name && ! $nonameupdate -eq 1 ]];then
+ appliance_name="$C"
+ nonameupdate=1
+fi
+
+if [[ $E = arch ]]; then
+ arch="$C"
+fi
+
+
+if [[ $E = version ]]; then
+ version="$C"
+fi
 if [[ $E = image_type ]]; then
- if [[ $C = "oemiso" ]]; then
+ if [[ $C = "$format" ]]; then
  type=$C
  fi
 fi
 
-if [[ $E = download_url && $type = "oemiso" ]]; then
- oemisolink="$C"
+if [[ $E = download_url && $type = "$format" ]]; then
+ imagelink="$C"
  unset type
  
+#break loop to get latest image version
+break
 fi
 
 done < $tempfile
 rm $tempfile
 unset tempfile
-if [[ -z $oemisolink ]]; then 
+if [[ -z $imagelink ]]; then 
 echo "Image is not ready"; cleanup
 else echo "Image is ready, we can upload it to server..."
 fi
@@ -201,11 +219,36 @@ fi
 
 imageupload() {
 
-#curl -u "$1":"$2" "$oemisolink" | $ssh root@$esx_server "cat > /vmfs/volumes/$datastore/${name// /\ }/studio.iso" && echo "Image uploaded"
+#curl -u "$1":"$2" "$imagelink" | $ssh root@$esx_server "cat > /vmfs/volumes/$datastore/${name// /\ }/studio.iso" && echo "Image uploaded"
 
-$ssh root@$esx_server "wget $oemisolink -O  /vmfs/volumes/$datastore/${name// /\ }/studio.iso" && echo "Image uploaded"
+	if [ "$format" = "oemiso" ] ; then
+
+		$ssh root@$esx_server "wget $imagelink -O  /vmfs/volumes/$datastore/${name// /\ }/studio.iso" && echo "Image uploaded"
+
+	elif [ "$format" = "vmx" ] ; then
+		img_filename=$(basename $imagelink)
+		$ssh root@$esx_server "cd /vmfs/volumes/$datastore/; wget $imagelink && echo  "Unpacking image, please wait..." && tar -zxf $img_filename && rm $img_filename && mv $short_name $name && chown root:root -R ./$name " && echo "Image uploaded & unpacked"		
+	fi
 	
 }
+
+
+vmdk_convert ()
+{
+	$ssh root@$esx_server "cd /vmfs/volumes/$datastore/$1/ && mv ./$1.vmdk ./$1.vmdk.preconvert && vmkfstools -i $1.vmdk.preconvert -d thin $1.vmdk && rm $1.vmdk.preconvert"
+}	# ----------  end of function vmkd_convert  ----------
+
+
+
+vmx_convert ()
+{	 
+	vnc_port
+        vnc_conf
+        pathtoconfig="/vmfs/volumes/$datastore/$name/$name.vmx"
+	$ssh root@$esx_server "sed -i 's/virtualHW.version = \"4\"/virtualHW.version = \"7\"/g' '$pathtoconfig' && sed -i 's/ide0:0.*//g' '$pathtoconfig'" 
+	echo -e "$vnc_config\nethernet0.networkName = \"VM Network\"" | $ssh root@$esx_server "cat >> $pathtoconfig"
+
+}	# ----------  end of function vmx_convert  ----------
 
 #vmware 
 initial_info() {
@@ -268,12 +311,13 @@ Options:
 --revert <vmid> --snapname <snapshot label> Revert from snapshot
 --remove <vmid> Delete VM
 
---studioserver Custom suse studio server ( if option is ommited susestudio.com is a default)
+--studioserver Custom suse studio server ( if option is omitted susestudio.com is a default)
 --apiuser your SUSE Studio user (see http://susestudio.com/user/show_api_key )
 --apikey  your SUSE Studio api key
 --appliances Get appliance list from SUSE Studio
 --buildimage <appliance_id> Build Preload ISO of specified appliance for deployment 
 --buildstatus <appliance_id> Get info on running builds of specified appliance
+--format <image format> specify oemiso or vmx here
 --help This help
 "
 }
@@ -281,22 +325,19 @@ Options:
 
 # Create and register VM
 
-askname (){
-echo "Please enter a label for the new virtual machine:"
-read name
-}
-
 register_vm () {
 if [[ ! -z $studio ]]; then
-	if [[ ! -z $apiuser && ! -z apikey ]];then
-	checkimage "$apiuser" "$apikey" "$studio"; 
-	$ssh root@$esx_server "mkdir \"/vmfs/volumes/$datastore/$name\""
+	if [[ ! -z $apiuser && ! -z $apikey ]];then
+	
+	[ $format = "oemiso" ] && $ssh root@$esx_server "mkdir \"/vmfs/volumes/$datastore/$name\"" && iso="$datastore/$name/studio.iso"
+	
 	imageupload "$apiuser" "$apikey" ;
-	iso="$datastore/$name/studio.iso"
+	[ $format = "vmx" ] && vmdk_convert "${name// /\ }" && vmx_convert && $ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$datastore/$name/$name.vmx'" && echo "Virtual machine \"$name\" created" && cleanup
 	else
 	echo "Please provide studio apiuser and apikey"; exit
 	fi
 fi
+exit
 config="
 config.version = \"8\"
 virtualHW.version= \"7\"
@@ -354,7 +395,7 @@ power_on() {
 	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$name/$name.vmx' && sed -i s/bios\.forceSetupOnce.*/bios\.forceSetupOnce=TRUE/g '/vmfs/volumes/$datastore/$name/$name.vmx'" > /dev/null
 	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$name/$name.vmx' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$name/$name.vmx' && vim-cmd vmsvc/reload $1" > /dev/null
 	fi
-ssh root@$esx_server "vim-cmd vmsvc/power.on $1"
+$ssh root@$esx_server "vim-cmd vmsvc/power.on $1"
 }
 
 power_off() {
@@ -546,9 +587,20 @@ if [ $? -eq 0 ]; then
 	echo "Error: Virtual Machine with such name already exists"; cleanup
 fi
 
+
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="ds: iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver:" "hcln:s:m:d:" "$@"` || usage 
+
+studio_before_filter ()
+{
+	if [[ ! $format =~ (oemiso|vmx) ]] ; then
+		echo "--format should be specified as oemiso or vmx"; exit;
+	fi
+
+
+}	# ----------  end of function studio_before_filter  ----------
+
+eval set -- `getopt -n$0 -a  --longoptions="ds: iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -564,7 +616,7 @@ do
 	     --status) ssh root@$esx_server "vim-cmd vmsvc/get.summary $2"| grep -E '(powerState|toolsStatus|hostName|ipAddress|name =|vmPathName|memorySizeMB|guestMemoryUsage|hostMemoryUsage)' ;shift; exit;;
 	     --bios) bios_once="1";shift;;
 	     --poweron) power_on_vmid=$2;shift;;
-	     --poweroff) power_off $2;shift;;
+	     --poweroff) power_off $2 ;exit ;shift;;
 	     --snapshot) snap_vmid=$2;shift;;
 	     --revert) revert_vmid=$2;shift;;
 	     --remove) remove_vmid=$2;shift;;
@@ -584,8 +636,9 @@ do
 	     --studio) studio="$2";shift;;
 	     --studioserver) studioserver="$2";shift;;
 	     --ds) datastore="$2";shift;;
-             -h)        ;;
-	     --help)  ;;
+	     --format) format="$2";shift;;
+             -h) usage; break       ;;
+	     --help) usage; break ;;
 	     --)        shift;break;;
 	     -*)        usage;;
 	      *)         break;;        
@@ -603,11 +656,29 @@ then	ssh root@$esx_server test -e /vmfs/volumes/$iso
 	[ $? -eq 1 ] && echo "ISO image does not exist on datastore" && cleanup
 fi
 
+#Reasonable defaults
 studioserver=${studioserver:-susestudio.com} #susestudio.com is default server
+format=${format:-vmx} #default image format is vmx
+ram=${ram:-512}
+
+
+if [ ! -z $studio ] ; then
+	checkimage "$apiuser" "$apikey" "$studio"
+	   			
+	if [ $format = "vmx" ] ; then
+  		if [ $arch = "i586" ] ; then
+			arch="i686"
+		fi
+	short_name="$appliance_name-$version"
+	name="$appliance_name.$arch-$version"
+	disk="1G" #non used in action
+	fi
+	
+	
+fi
 
 if [[ ! -z $create_new  && -n $esx_server && -n $ram && -n $disk && -n $name ]]
 	then
-#	askname
 	before_filter
 	vnc_pass
 	vnc_port
@@ -619,7 +690,7 @@ if [[ ! -z $create_new  && -n $esx_server && -n $ram && -n $disk && -n $name ]]
 #power on and bios up
 if [ ! -z $power_on_vmid ]
 	then
-		power_on $power_on_vmid
+		power_on $power_on_vmid; cleanup
 fi
 
 #dslist execution
@@ -675,5 +746,5 @@ if [[ -n $apiuser &&  -n $apikey && ! -z $buildstatus ]]
 then buildstatus "$apiuser" "$apikey" "$buildstatus"; exit
 fi
 
-cleanup
 usage
+cleanup
