@@ -235,7 +235,7 @@ imageupload() {
 
 vmdk_convert ()
 {
-	$ssh root@$esx_server "cd /vmfs/volumes/$datastore/$1/ && mv ./$1.vmdk ./$1.vmdk.preconvert && vmkfstools -i $1.vmdk.preconvert -d thin $1.vmdk && rm $1.vmdk.preconvert"
+	$ssh root@$esx_server "cd '/vmfs/volumes/$datastore/$1/' && mv './$1.vmdk' './$1.vmdk.preconvert' && vmkfstools -i '$1.vmdk.preconvert' -d thin '$1.vmdk' && rm '$1.vmdk.preconvert'"
 }	# ----------  end of function vmkd_convert  ----------
 
 
@@ -669,6 +669,7 @@ if [ ! -z $studio ] ; then
   		if [ $arch = "i586" ] ; then
 			arch="i686"
 		fi
+	appliance_name=$(echo $appliance_name | sed 's/ /_/g')
 	short_name="$appliance_name-$version"
 	name="$appliance_name.$arch-$version"
 	disk="1G" #non used in action
