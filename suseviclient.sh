@@ -21,9 +21,6 @@
 
 #kinda config section
 
-#Default datastore to work with
-datastore="datastore1"
-
 . ~/.suseviclientrc
 
 # end of config section
@@ -377,7 +374,7 @@ vmid=$($ssh root@$esx_server "vim-cmd vmsvc/getallvms | grep '$name' | awk '{pri
 
 vmid2name(){
 name=`$ssh root@$esx_server "vim-cmd vmsvc/get.summary $1 | grep name " | awk 'BEGIN { FS="\""; } { print $2; }'| cut -c 1-32`
-if [ -z $name ]; then
+if [ -z "$name" ]; then
  return 1
 fi
 }
@@ -657,6 +654,7 @@ then	ssh root@$esx_server test -e /vmfs/volumes/$iso
 fi
 
 #Reasonable defaults
+datastore=${datastore:-datastore1}
 studioserver=${studioserver:-susestudio.com} #susestudio.com is default server
 format=${format:-vmx} #default image format is vmx
 ram=${ram:-512}
@@ -669,7 +667,7 @@ if [ ! -z $studio ] ; then
   		if [ $arch = "i586" ] ; then
 			arch="i686"
 		fi
-	appliance_name=$(echo $appliance_name | sed 's/ /_/g')
+	appliance_name=${appliance_name// /_}
 	short_name="$appliance_name-$version"
 	name="$appliance_name.$arch-$version"
 	disk="1G" #non used in action
