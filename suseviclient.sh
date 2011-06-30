@@ -392,15 +392,21 @@ power_on() {
 	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$name/$name.vmx' && sed -i s/bios\.forceSetupOnce.*/bios\.forceSetupOnce=TRUE/g '/vmfs/volumes/$datastore/$name/$name.vmx'" > /dev/null
 	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$name/$name.vmx' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$name/$name.vmx' && vim-cmd vmsvc/reload $1" > /dev/null
 	fi
-$ssh root@$esx_server "vim-cmd vmsvc/power.on $1"
+output=$($ssh root@$esx_server "vim-cmd vmsvc/power.on $1 2>&1")
+if [ $? -eq 0 ] ; then
+        echo "VM powered on"; return 0
+  else
+      echo "$output" | sed -n 's/msg = "\(.*\)".*/\1/p'; return 1
+fi
+
 }
 
 power_off() {
 output=$(ssh root@$esx_server "vim-cmd vmsvc/power.off $1 2>&1")
 if [ $? -eq 0 ] ; then
-	echo "VM powered off"
+	echo "VM powered off"; return 0
   else
-      echo "$output" | grep "msg" | grep -o '\".*\"' | egrep -o '[A-Za-z0-9\ \(\)-]+'
+      echo "$output" | sed -n 's/msg = "\(.*\)".*/\1/p' ; return 1
 fi
 }
 
