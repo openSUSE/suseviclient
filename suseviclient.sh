@@ -396,7 +396,12 @@ $ssh root@$esx_server "vim-cmd vmsvc/power.on $1"
 }
 
 power_off() {
-ssh root@$esx_server "vim-cmd vmsvc/power.off $1"
+output=$(ssh root@$esx_server "vim-cmd vmsvc/power.off $1 2>&1")
+if [ $? -eq 0 ] ; then
+	echo "VM powered off"
+  else
+      echo "$output" | grep "msg" | grep -o '\".*\"' | egrep -o '[A-Za-z0-9\ \(\)-]+'
+fi
 }
 
 
