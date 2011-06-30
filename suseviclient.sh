@@ -21,7 +21,7 @@
 
 #kinda config section
 
-. ~/.suseviclientrc
+[ -f ~/.suseviclientrc ] && . ~/.suseviclientrc
 
 # end of config section
 
@@ -401,7 +401,6 @@ ssh root@$esx_server "vim-cmd vmsvc/power.off $1"
 
 
 vnc_connect(){
-get_vnc_port
 vncviewer -encodings 'hextile zlib copyrect' $esx_server:$vnc_conn_port
 }
 
@@ -451,6 +450,11 @@ get_vnc_port(){
 
 vnc_conn_port=`$ssh root@$esx_server "find /vmfs/volumes/$datastore/'$name' -iname \*.vmx -exec grep vnc\.port {} \;" | awk '{print $3}' | sed s/\"//g`
 
+	if [ ! -z "$vnc_conn_port" ] ; then
+		return 0
+	else
+		echo "vnc is not enabled on this virtual machine. Please try --addvnc feature."; return 1
+			fi
 }
 
 snapshot() {
@@ -634,8 +638,8 @@ do
 	     --studioserver) studioserver="$2";shift;;
 	     --ds) datastore="$2";shift;;
 	     --format) format="$2";shift;;
-             -h) usage; break       ;;
-	     --help) usage; break ;;
+             -h) usage; exit ;;
+	     --help) usage; exit ;;
 	     --)        shift;break;;
 	     -*)        usage;;
 	      *)         break;;        
@@ -658,7 +662,7 @@ datastore=${datastore:-datastore1}
 studioserver=${studioserver:-susestudio.com} #susestudio.com is default server
 format=${format:-vmx} #default image format is vmx
 ram=${ram:-512}
-
+disk=${disk:-5G}
 
 if [ ! -z $studio ] ; then
 	checkimage "$apiuser" "$apikey" "$studio"
@@ -670,7 +674,6 @@ if [ ! -z $studio ] ; then
 	appliance_name=${appliance_name// /_}
 	short_name="$appliance_name-$version"
 	name="$appliance_name.$arch-$version"
-	disk="1G" #non used in action
 	fi
 	
 	
