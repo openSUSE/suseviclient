@@ -265,8 +265,8 @@ initial_info() {
 	 name=`echo $line | grep -o "\ [A-Za-z0-9].*\[" | sed 's/\s*\[//;s/^\s//'`
 	 resolved_ds=$(echo $line| grep -o '\[.*\]' |egrep -o '[A-Za-z0-9-]+')
 	 resolved_ds=$($ssh root@$esx_server "cd /vmfs/volumes/$resolved_ds;pwd -P"< /dev/null) 
-	 
-	 $ssh root@$esx_server "/usr/lib/vmware/bin/vmdumper  -l| grep \"$resolved_ds/${name// /\ }/${name// /\ }.vmx\" > /dev/null" < /dev/null 
+	 relpath=$(echo $line | sed -n 's/.*] \(.*\)\.vmx.*/\1.vmx/p')	 
+	 $ssh root@$esx_server "/usr/lib/vmware/bin/vmdumper  -l| grep \"$resolved_ds/$relpath\" > /dev/null" < /dev/null 
 	 pwstate=$?
 	 if [ $pwstate -eq 0 ]
 	 then
@@ -383,15 +383,21 @@ vmid2datastore(){
 	datastore=$($ssh root@$esx_server "vim-cmd vmsvc/get.config $1 | grep vmPathName| grep -o '\"\[.*\]' |egrep -o '[A-Za-z0-9-]+'")
 }
 
+vmid2relpath(){
+        relpath=$($ssh root@$esx_server "vim-cmd vmsvc/get.config $1 | grep vmPathName | sed 's/.*] //g; s/\",.*//g'")
+}
+
 power_on() {
 	if [ ! -z $bios_once ] 
 	then
 	biosonce_config="bios.forceSetupOnce = \"TRUE\""
 	vmid2name $1
 	vmid2datastore $1
-	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$name/$name.vmx' && sed -i s/bios\.forceSetupOnce.*/bios\.forceSetupOnce=TRUE/g '/vmfs/volumes/$datastore/$name/$name.vmx'" > /dev/null
-	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$name/$name.vmx' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$name/$name.vmx' && vim-cmd vmsvc/reload $1" > /dev/null
-	fi
+    vmid2relpath $1
+	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' && sed -i s/bios\.forceSetupOnce.*/bios\.forceSetupOnce=TRUE/g '/vmfs/volumes/$datastore/$relpath'" > /dev/null
+	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$relpath' && vim-cmd vmsvc/reload $1" > /dev/null
+ 	fi
+ 	
 output=$($ssh root@$esx_server "vim-cmd vmsvc/power.on $1 2>&1")
 if [ $? -eq 0 ] ; then
         echo "VM powered on"; return 0
@@ -459,7 +465,7 @@ fi
 
 get_vnc_port(){
 
-vnc_conn_port=`$ssh root@$esx_server "find /vmfs/volumes/$datastore/'$name' -iname \*.vmx -exec grep vnc\.port {} \;" | awk '{print $3}' | sed s/\"//g`
+vnc_conn_port=`$ssh root@$esx_server "grep vnc\.port /vmfs/volumes/$datastore/'$relpath'" | awk '{print $3}' | sed s/\"//g`
 
 	if [ ! -z "$vnc_conn_port" ] ; then
 		return 0
@@ -554,9 +560,10 @@ RemoteDisplay.vnc.port = \"$vnc_port\""
 		fi
 }
 addvnc() {
-  vmid2name $1
-   vmid2datastore $1
-    vnc_check=`$ssh root$esx_server "egrep 'RemoteDisplay.vnc.enabled = \"?True\"?' '/vmfs/volumes/$datastore/$name/$name.vmx'"`
+    vmid2name $1
+    vmid2datastore $1
+    vmid2relpath $1
+    vnc_check=`$ssh root$esx_server "egrep 'RemoteDisplay.vnc.enabled = \"?True\"?' '/vmfs/volumes/$datastore/$relpath'"`
     if [ ! -z "$vnc_check" ]
     then echo "VNC is already enabled on this machine"
     else
@@ -569,7 +576,7 @@ addvnc() {
    vnc_pass
    vnc_conf
 
-    $ssh root$esx_server "echo -e \"$vnc_config\" >> 'vmfs/volumes/$datastore/$name/$name.vmx' && vim-cmd vmsvc/reload $1"
+   $ssh root$esx_server "echo -e \"$vnc_config\" >> 'vmfs/volumes/$datastore/$relpath' && vim-cmd vmsvc/reload $1"
     fi
 }
 
@@ -727,7 +734,7 @@ then  snapshotremove $snapshotremove_vmid "$snapname" $all; cleanup
 fi
 
 if [[  -n $esx_server && ! -z $vnc ]] 
-then  vmid2name $vnc && vmid2datastore $vnc && get_vnc_port && vnc_connect ; cleanup
+then  vmid2name $vnc && vmid2datastore $vnc && vmid2relpath $vnc && get_vnc_port && vnc_connect ; cleanup
 fi
 
 if [[  -n $esx_server && ! -z $snap_vmid && ! -z $snapname ]] 
