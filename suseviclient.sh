@@ -393,7 +393,7 @@ power_on() {
 	biosonce_config="bios.forceSetupOnce = \"TRUE\""
 	vmid2name $1
 	vmid2datastore $1
-    vmid2relpath $1
+    	vmid2relpath $1
 	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' && sed -i s/bios\.forceSetupOnce.*/bios\.forceSetupOnce=TRUE/g '/vmfs/volumes/$datastore/$relpath'" > /dev/null
 	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$relpath' && vim-cmd vmsvc/reload $1" > /dev/null
  	fi
@@ -696,6 +696,9 @@ if [ ! -z $studio ] ; then
 	
 	
 fi
+
+#no single quotes in vm name
+name=${name//\'/}
 
 if [[ ! -z $create_new  && -n $esx_server && -n $ram && -n $disk && -n $name ]]
 	then
