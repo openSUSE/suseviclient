@@ -327,6 +327,25 @@ SUSE Studio specific options:
 --buildstatus <appliance_id> Get info on running builds of specified appliance
 --format <image format> specify oemiso or vmx here
 --help This help
+
+Configuration file:
+--------------------
+You can specify frequently used options in configuration file of ~/.suseviclientrc 
+Example of such a config file with comments:
+
+#Default ESXi server to work with
+esx_server=\"thessalonike.suse.de\"
+
+#SUSE Studio API user
+apiuser=\"studiouser\"
+
+#SUSE Studio API key
+apikey=\"studioapikey\"
+
+#Custom SUSE Studio server
+studioserver=\"istudio.suse.de\"
+
+All specified directives in config file are easily overridable by the related command control option.
 "
 }
 
@@ -344,8 +363,9 @@ if [[ ! -z $studio ]]; then
 	else
 	echo "Please provide studio apiuser and apikey"; exit
 	fi
+	exit
 fi
-exit
+
 config="
 config.version = \"8\"
 virtualHW.version= \"7\"
@@ -355,25 +375,36 @@ displayname = \"$name\"
 scsi0.present = \"TRUE\"
 scsi0.virtualDev = \"lsilogic\"
 scsi0:0.present = \"TRUE\"
-scsi0:0.fileName = \"$name.vmdk\"
+scsi0:0.fileName = \"$name.vmdk\""
+
+if [ -n "$iso" ];then
+iso_config="
 ide1:0.present = \"true\"
 ide1:0.deviceType = \"cdrom-image\"
 ide1:0.filename = \"/vmfs/volumes/$iso\"
-ide1:0.startConnected = \"TRUE\"
+ide1:0.startConnected = \"TRUE\""
+else
+iso_config=""
+fi
+
+network_config="
 ethernet0.present= \"true\"
 ethernet0.startConnected = \"true\"
 ethernet0.virtualDev = \"e1000\"
-ethernet0.networkName = \"VM Network\"
-${vnc_config}"
+ethernet0.networkName = \"VM Network\""
 
-echo "$config" > "/tmp/$name.vmx"
 $ssh root@$esx_server "[[ ! -d  \"/vmfs/volumes/$datastore/$name\" ]] &&  mkdir \"/vmfs/volumes/$datastore/$name\""
-$ssh root@$esx_server " 
-cd /vmfs/volumes/$datastore/${name// /\ } && 
-vmkfstools -c $disk -a lsilogic '$name.vmdk' "
-$scp "/tmp/$name.vmx" root@$esx_server:"/vmfs/volumes/$datastore/${name// /\ }/" 2>&1>/dev/null
-rm -f "/tmp/$name.vmx"
-$ssh root@$esx_server "vim-cmd solo/registervm /vmfs/volumes/$datastore/${name// /\ }/${name// /\ }.vmx"
+
+echo "$config$iso_config$network_config$vnc_config" | $ssh root@$esx_server "cat > '/vmfs/volumes/$datastore/$name/$name.vmx'"
+
+#Create an empty scsci disk of if vmdk specified copy it to the vm's dir
+if [ -n "$vmdk" ];then
+$ssh root@$esx_server "vmkfstools -i '/vmfs/volumes/$vmdk' -d thin '/vmfs/volumes/$datastore/$name/$name.vmdk'"
+else
+$ssh root@$esx_server "cd '/vmfs/volumes/$datastore/$name' && vmkfstools -c $disk -a lsilogic '$name.vmdk' "
+fi
+
+$ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$datastore/$name/$name.vmx'"
 echo "Virtual machine \"$name\" created"
 }
 
@@ -566,11 +597,13 @@ powerstate(){
 vnc_conf(){
 			if [ -n "$vnc_password" ] 
 			then
-				vnc_config="RemoteDisplay.vnc.enabled = \"True\"
+				vnc_config="
+RemoteDisplay.vnc.enabled = \"True\"
 RemoteDisplay.vnc.port = \"$vnc_port\"
 RemoteDisplay.vnc.password = \"$vnc_password\""
 			else
-				vnc_config="RemoteDisplay.vnc.enabled = \"True\"
+				vnc_config="
+RemoteDisplay.vnc.enabled = \"True\"
 RemoteDisplay.vnc.port = \"$vnc_port\""
 		fi
 }
@@ -634,7 +667,7 @@ studio_before_filter ()
 
 }	# ----------  end of function studio_before_filter  ----------
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format:" "hcln:s:m:d:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -649,6 +682,7 @@ do
 	     --vncpass) vnc_password="$2";shift;;
 	     --novncpass) no_vnc_password=1;;
 	     --iso) iso="$2";shift;;
+	     --vmdk) vmdk="$2";shift;;
 	     --status) ssh root@$esx_server "vim-cmd vmsvc/get.summary $2"| grep -E '(powerState|toolsStatus|hostName|ipAddress|name =|vmPathName|memorySizeMB|guestMemoryUsage|hostMemoryUsage)' ;shift; exit;;
 	     --bios) bios_once="1";shift;;
 	     --poweron) power_on_vmid=$2;shift;;
@@ -686,10 +720,16 @@ done
 
 [[ -n $esx_server && ! -z $list ]] && initial_info && cleanup
 
-### iso file check
-if [ ! -z $iso ] 
-then	ssh root@$esx_server test -e /vmfs/volumes/$iso
+# iso file check
+if [ ! -z $iso ];then	
+	$ssh root@$esx_server "test -e '/vmfs/volumes/$iso'"
 	[ $? -eq 1 ] && echo "ISO image does not exist on datastore" && cleanup
+fi
+
+# vmdk file check
+if [ -n $vmdk ]; then
+	$ssh root@$esx_server "test -e '/vmfs/volumes/$vmdk'"
+	[ $? -eq 1 ] && echo "VMDK image does not exist on datastore" && cleanup
 fi
 
 #Reasonable defaults
