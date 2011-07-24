@@ -242,7 +242,7 @@ vmx_convert ()
 	vnc_port
         vnc_conf
         pathtoconfig="/vmfs/volumes/$datastore/$name/$name.vmx"
-	$ssh root@$esx_server "sed -i 's/virtualHW.version = \"4\"/virtualHW.version = \"7\"/g' '$pathtoconfig' && sed -i 's/ide0:0.*//g' '$pathtoconfig'" 
+	$ssh root@$esx_server "sed -i 's/virtualHW.version = \"4\"/virtualHW.version = \"7\"/g; s/ide0:0.*//g' '$pathtoconfig'" 
 	echo -e "$vnc_config\nethernet0.networkName = \"VM Network\"" | $ssh root@$esx_server "cat >> $pathtoconfig"
 
 }	# ----------  end of function vmx_convert  ----------
@@ -284,8 +284,12 @@ initial_info() {
         } 
 
 usage() {
-echo  "Tool to create and control virtual machines on ESX(i) servers
-Options:
+echo  "
+
+Tool to create and control virtual machines on ESXi servers
+
+VM creation:
+------------
 -s <ip or domain name of ESX server>
 -c Create new vm
    -n <label> for the new virtual machine
@@ -294,6 +298,11 @@ Options:
    --ds <datastore name> where VM will be created (optional)
    --iso <path> to ISO image in format of <datastore>/path/to/image.iso (optional)
    --studio <appliance_id> Deploy appliance from SUSE Studio server (optional), see studio options below
+   --vncpass <password> set password to access vm console via vnc. Use this if you need non-interactive VM creation.
+   --novncpass omits setting vnc password so no authorization will be required
+			
+Generic management:
+------------------- 
 -l List all guests
 --dslist List all datastores
 --dsbrowse List files on specified datastore
@@ -308,9 +317,11 @@ Options:
 --revert <vmid> --snapname <snapshot label> Revert from snapshot
 --remove <vmid> Delete VM
 
---studioserver Custom suse studio server ( if option is omitted susestudio.com is a default)
---apiuser your SUSE Studio user (see http://susestudio.com/user/show_api_key )
---apikey  your SUSE Studio api key
+SUSE Studio specific options:
+-----------------------------
+--studioserver <custom.server.com> Custom suse studio server ( if option is omitted susestudio.com is a default)
+--apiuser <api_user> your SUSE Studio user (see http://susestudio.com/user/show_api_key )
+--apikey <api_key> your SUSE Studio api key
 --appliances Get appliance list from SUSE Studio
 --buildimage <appliance_id> Build Preload ISO of specified appliance for deployment 
 --buildstatus <appliance_id> Get info on running builds of specified appliance
@@ -440,7 +451,11 @@ vnc_port=`$ssh root@$esx_server "find $searchpath -iname *.vmx -exec grep vnc\.p
 }
 
 vnc_pass(){
-
+if [ $no_vnc_password -eq 1 ]; then
+	vnc_password=""
+	return 0
+fi
+if [ -z "$vnc_password" ];then
 stty_orig=`stty -g`
 stty -echo
 echo "Enter new VNC password:"
@@ -460,7 +475,7 @@ then echo "VNC password successfuly changed."
 	  echo "Passwords do not match"
 	  vnc_pass
 fi
-
+fi
 }
 
 get_vnc_port(){
@@ -619,7 +634,7 @@ studio_before_filter ()
 
 }	# ----------  end of function studio_before_filter  ----------
 
-eval set -- `getopt -n$0 -a  --longoptions="ds: iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format:" "hcln:s:m:d:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -631,6 +646,8 @@ do
 	     -n) name=$2;shift;;
 	     -c)  create_new="1";;
 	     -l)  list="1";;
+	     --vncpass) vnc_password="$2";shift;;
+	     --novncpass) no_vnc_password=1;;
 	     --iso) iso="$2";shift;;
 	     --status) ssh root@$esx_server "vim-cmd vmsvc/get.summary $2"| grep -E '(powerState|toolsStatus|hostName|ipAddress|name =|vmPathName|memorySizeMB|guestMemoryUsage|hostMemoryUsage)' ;shift; exit;;
 	     --bios) bios_once="1";shift;;
@@ -681,6 +698,7 @@ studioserver=${studioserver:-susestudio.com} #susestudio.com is default server
 format=${format:-vmx} #default image format is vmx
 ram=${ram:-512}
 disk=${disk:-5G}
+no_vnc_password=${no_vnc_password:-0} #Usually we want VNC password to be set
 
 if [ ! -z $studio ] ; then
 	checkimage "$apiuser" "$apikey" "$studio"
