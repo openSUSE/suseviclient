@@ -3,12 +3,12 @@
 #
 #          FILE:  suseviclient.sh
 # 
-#         USAGE:  ./suseviclient.sh 
+#         USAGE:  ./suseviclient.sh <options>
 # 
 #   DESCRIPTION: Lightweight VMware ESXi management tool
 # 
-#       OPTIONS:  ---
-#  REQUIREMENTS:  ---
+#       OPTIONS:  see ./suseviclient.sh --help
+#  REQUIREMENTS:  bash,ssh and vncviewer
 #          BUGS:  ---
 #         NOTES:  ---
 #        AUTHOR: Yury Tsarev, ytsarev@suse.cz
@@ -293,8 +293,8 @@ VM creation:
 -s <ip or domain name of ESX server>
 -c Create new vm
    -n <label> for the new virtual machine
-   -m <size> of RAM in megabytes
-   -d <size> of hard disk (M/G)
+   -m <size> of RAM in megabytes. Can be omitted. Default is 512 MB
+   -d <size> of hard disk (M/G). Can be omitted. Default is 5 GB
    --ds <datastore name> where VM will be created (optional)
    --iso <path> to ISO image in format of <datastore>/path/to/image.iso (optional)
    --studio <appliance_id> Deploy appliance from SUSE Studio server (optional), see studio options below
