@@ -314,7 +314,7 @@ Generic management:
 --addvnc <vmid> Add VNC support to an existing VM ( guest need to be restarted to take effect)
 --snapshotlist <vmid> Get list of snapshots for current VM
 --snapshot <vmid> --snapname <snapshot label> Make snapshot of current VM status
---snapshotremove <vmid> --snapname "<snapshot name>" Remove a snapshot with specified name
+--snapshotremove <vmid> --snapname \"<snapshot name>\" Remove a snapshot with specified name
 --snapshotremove <vmid> --all Remove all snapshots for specidied VM
 --revert <vmid> --snapname <snapshot label> Revert from snapshot
 --remove <vmid> Delete VM
