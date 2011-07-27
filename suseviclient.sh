@@ -224,7 +224,7 @@ imageupload() {
 
 	elif [ "$format" = "vmx" ] ; then
 		img_filename=$(basename $imagelink)
-		$ssh root@$esx_server "cd /vmfs/volumes/$datastore/; wget $imagelink && echo  "Unpacking image, please wait..." && tar -zxf $img_filename && rm $img_filename && mv $short_name $name && chown root:root -R ./$name " && echo "Image uploaded & unpacked"		
+		$ssh root@$esx_server "cd '/vmfs/volumes/$datastore/'; wget '$imagelink' && echo  \"Unpacking image, please wait...\" && tar -zxf '$img_filename' && rm '$img_filename' && mv '$short_name' '$name' && chown root:root -R './$name' " && echo "Image uploaded & unpacked"		
 	fi
 	
 }
@@ -750,6 +750,7 @@ if [ ! -z $studio ] ; then
 			arch="i686"
 		fi
 	appliance_name=${appliance_name// /_}
+	appliance_name=${appliance_name//\'/}
 	short_name="$appliance_name-$version"
 	name="$appliance_name.$arch-$version"
 	fi
