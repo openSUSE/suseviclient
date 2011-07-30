@@ -38,7 +38,7 @@ cleanup() {
 [ ! -z $MASTERPID ] && kill $MASTERPID && exit
 }
 
-
+#generic helpers
 yesno (){
 while true
 do
@@ -57,6 +57,10 @@ echo "I cannot understand you over here."
 ;;
 esac
 done }
+
+strip_chars() {
+echo "${1//[\'\"\,\!\@\#\$\%\^\&\*\(\)\/\?\[\]\:\>\<\{\}\|\\\'\;]/}"
+}
 
 #studio 
 
@@ -709,7 +713,7 @@ do
 	     --studioserver) studioserver="$2";shift;;
 	     --ds) datastore="$2";shift;;
 	     --format) format="$2";shift;;
-             -h) usage; exit ;;
+         -h) usage; exit ;;
 	     --help) usage; exit ;;
 	     --)        shift;break;;
 	     -*)        usage;;
@@ -750,7 +754,7 @@ if [ ! -z $studio ] ; then
 			arch="i686"
 		fi
 	appliance_name=${appliance_name// /_}
-	appliance_name=${appliance_name//\'/}
+	appliance_name=$(strip_chars "$appliance_name")
 	short_name="$appliance_name-$version"
 	name="$appliance_name.$arch-$version"
 	fi
@@ -758,8 +762,8 @@ if [ ! -z $studio ] ; then
 	
 fi
 
-#no single quotes in vm name
-name=${name//\'/}
+#strip all potential insecure characters from vm name
+name=$(strip_chars "$name")
 
 if [[ ! -z $create_new  && -n $esx_server && -n $ram && -n $disk && -n $name ]]
 	then
@@ -782,7 +786,7 @@ if [[  -n $esx_server && ! -z $dslist ]]
 then  dslist ; cleanup
 fi
 
-#dslist execution
+#dsbrowse execution
 if [[  -n $esx_server && ! -z $dsbrowse ]] 
 then  dsbrowse $dsbrowse ; cleanup
 fi
