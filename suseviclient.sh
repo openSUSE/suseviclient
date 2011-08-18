@@ -591,8 +591,17 @@ remove() {
 #	else echo "Wrong vmid"
 #	fi
 	if yesno "Do you really want to delete $name ?" ; then
-		
-	$ssh root$esx_server "vim-cmd vmsvc/destroy $1" && echo "$name virtual machine removed"
+		powerstate $1
+		if [[ "$pwstate" = "Powered on"  ]]; then
+		echo "You should switch the VM off before removal: try '--poweroff $1' first"
+		return 1
+		fi
+output=$($ssh root$esx_server "vim-cmd vmsvc/destroy $1 2>&1")
+		if [ $? -eq 0 ] ; then
+			echo "$name virtual machine removed"; return 0
+		else
+			echo "$output" | sed -n 's/msg = "\(.*\)".*/\1/p'; return 1
+		fi
 	fi
 }
 
