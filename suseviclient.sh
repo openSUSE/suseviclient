@@ -465,10 +465,55 @@ fi
 }
 
 
-vnc_connect(){
-vncviewer -encodings 'hextile zlib copyrect' $esx_server:$vnc_conn_port
+reset() {
+
+output=$(ssh root@$esx_server "vim-cmd vmsvc/power.reset $1 2>&1")
+if [ $? -eq 0 ] ; then
+	echo "VM resetted"; return 0
+  else
+      echo "$output" | sed -n 's/msg = "\(.*\)".*/\1/p' ; return 1
+fi
+	
 }
 
+vnc_connect(){
+vncpassword=""
+passwd_counter=1
+connect=1 
+while [ $connect ]; do
+
+if [ $passwd_counter -gt 3 ];then
+cleanup
+fi
+
+output=$(echo "$vncpassword"|vncviewer -autopass -encodings 'hextile zlib copyrect' $esx_server:$vnc_conn_port 2>&1)
+echo $output| egrep -q "Performing standard VNC authentication"
+if [[ $? -eq 0 && $vncpassword = "" ]];then
+stty_orig=`stty -g`
+stty -echo
+echo "Enter VNC password:"
+
+read vncpassword
+
+stty $stty_orig
+output="suseviclient-vncrestart"
+passwd_counter=$(($passwd_counter+1))
+fi
+
+echo $output| egrep -q "VNC connection failed"
+
+if [[ $? -eq 0 && $vncpassword != "" ]]; then
+echo "VNC connection failed" 
+fi
+
+echo $output| egrep -q "(Unknown message type|Zero size rect|suseviclient-vncrestart)"
+if [ $? -eq 1 ]; then
+connect=""
+fi
+
+done
+
+}
 
 vnc_port(){
 tempfile=/tmp/dslist-`date +%s`-$RANDOM
@@ -682,7 +727,7 @@ studio_before_filter ()
 
 }	# ----------  end of function studio_before_filter  ----------
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format:" "hcln:s:m:d:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -701,7 +746,8 @@ do
 	     --status) ssh root@$esx_server "vim-cmd vmsvc/get.summary $2"| grep -E '(powerState|toolsStatus|hostName|ipAddress|name =|vmPathName|memorySizeMB|guestMemoryUsage|hostMemoryUsage)' ;shift; exit;;
 	     --bios) bios_once="1";shift;;
 	     --poweron) power_on_vmid=$2;shift;;
-	     --poweroff) power_off $2 ;exit ;shift;;
+	     --poweroff) power_off $2 ;exit;;
+	     --reset) reset $2; exit;;
 	     --snapshot) snap_vmid=$2;shift;;
 	     --revert) revert_vmid=$2;shift;;
 	     --remove) remove_vmid=$2;shift;;
