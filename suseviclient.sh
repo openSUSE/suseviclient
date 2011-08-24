@@ -314,6 +314,7 @@ Generic management:
 --poweron <vmid> Power On VM
    --bios Launch a VM's BIOS after start	
 --poweroff <vmid> Power Off VM
+--reset <vmid> Reset VM
 --vnc <vmid> Connect to VM via VNC
 --addvnc <vmid> Add VNC support to an existing VM ( guest need to be restarted to take effect)
 --snapshotlist <vmid> Get list of snapshots for current VM
