@@ -437,21 +437,27 @@ vmid2relpath(){
 }
 
 power_on() {
+
+    
 	if [ ! -z $bios_once ] 
 	then
-	biosonce_config="bios.forceSetupOnce = \"TRUE\""
-	vmid2name $1
 	vmid2datastore $1
-    	vmid2relpath $1
+    vmid2relpath $1
+	biosonce_config="bios.forceSetupOnce = \"TRUE\""
 	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' && sed -i s/bios\.forceSetupOnce.*/bios\.forceSetupOnce=TRUE/g '/vmfs/volumes/$datastore/$relpath'" > /dev/null
 	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$relpath' && vim-cmd vmsvc/reload $1" > /dev/null
  	fi
  	
 output=$($ssh root@$esx_server "vim-cmd vmsvc/power.on $1 2>&1")
 if [ $? -eq 0 ] ; then
-        echo "VM powered on"; return 0
+        echo "VM powered on"
   else
       echo "$output" | sed -n 's/msg = "\(.*\)".*/\1/p'; return 1
+fi
+
+message=$($ssh root@$esx_server "vim-cmd vmsvc/message $1| head -1 | grep -oE '[0-9]{1,}'")
+if [[ $message != "" ]];then
+$ssh root@$esx_server "vim-cmd vmsvc/message $1 $message 2"
 fi
 
 }
@@ -501,9 +507,9 @@ output="suseviclient-vncrestart"
 passwd_counter=$(($passwd_counter+1))
 fi
 
-echo $output| egrep -q "VNC connection failed"
+echo $output| egrep -q "(VNC connection failed|Unable to connect to VNC server)"
 
-if [[ $? -eq 0 && $vncpassword != "" ]]; then
+if [ $? -eq 0 ]; then
 echo "VNC connection failed" 
 fi
 
@@ -569,7 +575,24 @@ vnc_conn_port=`$ssh root@$esx_server "grep vnc\.port /vmfs/volumes/$datastore/'$
 		return 0
 	else
 		echo "vnc is not enabled on this virtual machine. Please try --addvnc feature."; return 1
-			fi
+	fi
+}
+
+snapshotcheck(){
+	output=$($ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1")
+	echo $output | grep -q "|-ROOT"
+	if [ $? -eq 1 ];then
+		return 2
+	fi
+	
+	if [ -n "$snapname" ];then
+		echo $output | grep -q "$2"
+		if [ $? -eq 0 ];then
+			echo "Snapshot $snapname created"; return 0
+			else
+			return 1
+		fi
+	fi
 }
 
 snapshot() {
@@ -577,18 +600,19 @@ snapshot() {
 	echo $uniq |grep -o ": $2" > /dev/null
 	if [ $? -eq 1 ]
 	then 
-	$ssh root@$esx_server "vim-cmd vmsvc/snapshot.create $1 \"$2\" \"  \" 1" > /dev/null
-	echo -e "Snapshot \"$2\" creation process started.\nPlease check its status with --snapshotlist option after a few minutes."
+		echo "Creating snapshot \"$snapname\"..."
+		$ssh root@$esx_server "vim-cmd vmsvc/snapshot.create $1 \"$2\" \"  \" 1" > /dev/null
+		while true;do
+		    snapshotcheck "$1" "$2" && break
+			sleep 10s
+		done
 	else
-	echo "Snapshotname \"$2\" already exists" 
+		echo "Snapshotname \"$2\" already exists" 
 	fi
 }
 
 revert(){
-	#vmid2name $1
-	#vmid2datastore $1
-# I know it's quite ugly, I'll optimize it later:)
-#   snaplevel=`$ssh root@$esx_server "grep displayName '/vmfs/volumes/$datastore/$name/$name.vmsd' | grep \"\"$2\"\" |egrep -o \"snapshot.?\" | grep -o '[0-9]'"`
+
 snaplevel=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1 | grep '$2' | egrep -o '\-*'| wc -c"`
    
    if [ ! $snaplevel -eq 0 ]
@@ -625,24 +649,65 @@ fi
 
 snapshotlist(){
 
-   $ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1"
+   output=$($ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1")
+   echo "$output" | grep -q "|-ROOT"
+   if [ $? -eq 1 ];then
+		echo "No snaphots created for this VM"
+   else
+		echo "$output"
+   fi
+}
 
+
+clone(){
+powerstate $1
+
+if [[ "$pwstate" = "Powered on"  ]]; then
+echo "You should switch the VM off before cloning. Please make a correct shutdown of the running OS or try '--poweroff $1'"
+cleanup
+fi
+ 	
+yesno "This operation will remove all snapshots from the source Virtual Machine! Are you sure to proceed?"
+
+echo "Removing all snapshots..." 
+$ssh root@$esx_server "vim-cmd vmsvc/snapshot.removeall $1" > /dev/null
+
+while true;do
+	snapshotcheck $1
+	if [ $? -eq 2 ];then
+	break
+	fi
+	sleep 5s
+done
+target_datastore="$datastore"
+
+vmid2datastore $1
+vmid2relpath $1 
+oldname=$(vmid2name $1; echo $name)
+if [ -z "$name" ];then
+name="Clone of $oldname "$(date +"%d-%m-%Y %T")
+fi
+
+#TODO:extend to the case of multiple disks
+vmdkpath=$($ssh root@$esx_server "grep -i \.vmdk '/vmfs/volumes/$datastore/$relpath' | sed -n 's/.*\"\(.*\)\.vmdk.*/\1.vmdk/p'")
+vmdkpath="$(dirname $relpath)/$vmdkpath"
+$ssh root@$esx_server "mkdir '/vmfs/volumes/$target_datastore/$name' && vmkfstools -d thin -i '/vmfs/volumes/$datastore/$vmdkpath' '/vmfs/volumes/$target_datastore/$name/$name.vmdk' && cp '/vmfs/volumes/$datastore/$relpath' '/vmfs/volumes/$target_datastore/$name/$name.vmx'"
+vnc_port
+$ssh root@$esx_server "sed -i 's/displayname = \".*\"/displayname = \"$name\"/g;s/\".*\.vmdk\"/\"$name.vmdk\"/g;s/RemoteDisplay.vnc.port = \".*\"/RemoteDisplay.vnc.port = \"$vnc_port\"/g' '/vmfs/volumes/$target_datastore/$name/$name.vmx'"
+$ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$target_datastore/$name/$name.vmx' && touch '/vmfs/volumes/$target_datastore/$name/clone_first_start' && echo '\"$oldname\" was successfuly cloned to \"$name\"'"
 }
 
 remove() {
-        vmid2name $1 || exit
-#	vmid2datastore $1
-#	if [ ! -z "$name" ] 
-#        then $ssh root$esx_server "vim-cmd vmsvc/unregister $1 && rm -i /vmfs/volumes/${datastore// /\ }/${name// /\ }/* && rmdir \"/vmfs/volumes/$datastore/$name/\""
-#	else echo "Wrong vmid"
-#	fi
-	if yesno "Do you really want to delete $name ?" ; then
 		powerstate $1
+
+		vmid2name $1 || exit
 		if [[ "$pwstate" = "Powered on"  ]]; then
 		echo "You should switch the VM off before removal: try '--poweroff $1' first"
 		return 1
 		fi
-output=$($ssh root$esx_server "vim-cmd vmsvc/destroy $1 2>&1")
+
+	if yesno "Do you really want to delete $name ?" ; then
+		output=$($ssh root$esx_server "vim-cmd vmsvc/destroy $1 2>&1")
 		if [ $? -eq 0 ] ; then
 			echo "$name virtual machine removed"; return 0
 		else
@@ -652,7 +717,12 @@ output=$($ssh root$esx_server "vim-cmd vmsvc/destroy $1 2>&1")
 }
 
 powerstate(){
-	pwstate=`$ssh root@$esx_server "vim-cmd vmsvc/power.getstate $1"| tail -1`
+	pwstate=$($ssh root@$esx_server "vim-cmd vmsvc/power.getstate $1 2>&1")
+	if [ $? -eq 0 ] ; then
+        pwstate=$(echo "$pwstate"|tail -1)
+    else
+      echo "$pwstate" | sed -n 's/msg = "\(.*\)".*/\1/p'; cleanup
+    fi
 }
 
 vnc_conf(){
@@ -728,7 +798,7 @@ studio_before_filter ()
 
 }	# ----------  end of function studio_before_filter  ----------
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format:" "hcln:s:m:d:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -769,6 +839,7 @@ do
 	     --studioserver) studioserver="$2";shift;;
 	     --ds) datastore="$2";shift;;
 	     --format) format="$2";shift;;
+		 --clone) clone_id="$2";shift;;
          -h) usage; exit ;;
 	     --help) usage; exit ;;
 	     --)        shift;break;;
@@ -831,6 +902,13 @@ if [[ ! -z $create_new  && -n $esx_server && -n $ram && -n $disk && -n $name ]]
 	cleanup
 	fi
 
+#clone
+
+if [[ -n $esx_server && -n $clone_id ]];then
+	clone $clone_id; cleanup
+fi
+
+
 #power on and bios up
 if [ ! -z $power_on_vmid ]
 	then
@@ -861,8 +939,9 @@ if [[  -n $esx_server && ! -z $vnc ]]
 then  vmid2name $vnc && vmid2datastore $vnc && vmid2relpath $vnc && get_vnc_port && vnc_connect ; cleanup
 fi
 
-if [[  -n $esx_server && ! -z $snap_vmid && ! -z $snapname ]] 
-then snapshot $snap_vmid "$snapname"; cleanup
+#snapshot
+if [[  -n $esx_server && ! -z $snap_vmid ]]
+then snapname=${snapname:-$(echo "snapshot"$(date +"%d-%m-%Y %T"))}; snapshot $snap_vmid "$snapname"; cleanup
 fi
 
 if [[  -n $esx_server && ! -z $revert_vmid  && ! -z $snapname ]] 
