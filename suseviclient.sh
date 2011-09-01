@@ -588,7 +588,7 @@ snapshotcheck(){
 		return 2
 	fi
 	
-	if [ -n "$snapname" ];then
+	if [ -n "$2" ];then
 		echo $output | grep -q "$2"
 		if [ $? -eq 0 ];then
 			echo "Snapshot $snapname created"; return 0
@@ -642,7 +642,13 @@ snaplevel=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1 | grep '$2' | eg
    then
    snaplevel=$(( $snaplevel/2-1)) 
    $ssh root@$esx_server "vim-cmd vmsvc/snapshot.remove $1 1 $snaplevel" > /dev/null
-   echo "Removed snapshot: $2"
+   while true;do
+	   snapshotcheck "$1" "$2"
+	   if [[ $? -eq 1 || $? -eq 2 ]];then
+			echo "Snapshot \"$2\" removed"; break
+	   fi
+	   sleep 10s
+   done
    else
    echo "No snapshot with specified name: $2"
    fi
