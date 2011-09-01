@@ -304,6 +304,8 @@ VM creation:
    --studio <appliance_id> Deploy appliance from SUSE Studio server (optional), see studio options below
    --vncpass <password> set password to access vm console via vnc. Use this if you need non-interactive VM creation.
    --novncpass omits setting vnc password so no authorization will be required
+--clone <vmid> Clone the specified VM. Can be extended with -n <label> and --ds <datastore> options
+   
 			
 Generic management:
 ------------------- 
@@ -323,7 +325,7 @@ Generic management:
 --snapshotremove <vmid> --all Remove all snapshots for specidied VM
 --revert <vmid> --snapname <snapshot label> Revert from snapshot
 --remove <vmid> Delete VM
---clone <vmid> Clone the VM
+
 
 SUSE Studio specific options:
 -----------------------------
