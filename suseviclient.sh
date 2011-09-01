@@ -323,6 +323,7 @@ Generic management:
 --snapshotremove <vmid> --all Remove all snapshots for specidied VM
 --revert <vmid> --snapname <snapshot label> Revert from snapshot
 --remove <vmid> Delete VM
+--clone <vmid> Clone the VM
 
 SUSE Studio specific options:
 -----------------------------
