@@ -305,7 +305,7 @@ VM creation:
    --vncpass <password> set password to access vm console via vnc. Use this if you need non-interactive VM creation.
    --novncpass omits setting vnc password so no authorization will be required
 --clone <vmid> Clone the specified VM. Can be extended with -n <label> and --ds <datastore> options
-   
+--export <vmid> <local_directory> Export VM from ESXi to local desktop to use with VMWare desktop products(Workstation/Player)   
 			
 Generic management:
 ------------------- 
@@ -437,6 +437,12 @@ vmid2datastore(){
 
 vmid2relpath(){
         relpath=$($ssh root@$esx_server "vim-cmd vmsvc/get.config $1 | grep vmPathName | sed 's/.*] //g; s/\",.*//g'")
+}
+
+relpath2vmdkpath(){
+#TODO:extend to the case of multiple disks
+vmdkpath=$($ssh root@$esx_server "grep -i \.vmdk '/vmfs/volumes/$datastore/$relpath' | sed -n 's/.*\"\(.*\)\.vmdk.*/\1.vmdk/p' | head -1")
+vmdkpath="$(dirname "$relpath")/$vmdkpath"
 }
 
 power_on() {
@@ -676,18 +682,18 @@ echo "You should switch the VM off before cloning. Please make a correct shutdow
 cleanup
 fi
  	
-yesno "This operation will remove all snapshots from the source Virtual Machine! Are you sure to proceed?"
+#yesno "This operation will remove all snapshots from the source Virtual Machine! Are you sure to proceed?"
 
-echo "Removing all snapshots..." 
-$ssh root@$esx_server "vim-cmd vmsvc/snapshot.removeall $1" > /dev/null
+#echo "Removing all snapshots..." 
+#$ssh root@$esx_server "vim-cmd vmsvc/snapshot.removeall $1" > /dev/null
 
-while true;do
-	snapshotcheck $1
-	if [ $? -eq 2 ];then
-	break
-	fi
-	sleep 5s
-done
+#while true;do
+#	snapshotcheck $1
+#	if [ $? -eq 2 ];then
+#	break
+#	fi
+#	sleep 5s
+#done
 target_datastore="$datastore"
 
 vmid2datastore $1
@@ -697,9 +703,8 @@ if [ -z "$name" ];then
 name="Clone of $oldname "$(date +"%d-%m-%Y %T")
 fi
 
-#TODO:extend to the case of multiple disks
-vmdkpath=$($ssh root@$esx_server "grep -i \.vmdk '/vmfs/volumes/$datastore/$relpath' | sed -n 's/.*\"\(.*\)\.vmdk.*/\1.vmdk/p'")
-vmdkpath="$(dirname $relpath)/$vmdkpath"
+relpath2vmdkpath
+
 $ssh root@$esx_server "mkdir '/vmfs/volumes/$target_datastore/$name' && vmkfstools -d thin -i '/vmfs/volumes/$datastore/$vmdkpath' '/vmfs/volumes/$target_datastore/$name/$name.vmdk' && cp '/vmfs/volumes/$datastore/$relpath' '/vmfs/volumes/$target_datastore/$name/$name.vmx'"
 vnc_port
 $ssh root@$esx_server "sed -i 's/displayname = \".*\"/displayname = \"$name\"/g;s/\".*\.vmdk\"/\"$name.vmdk\"/g;s/RemoteDisplay.vnc.port = \".*\"/RemoteDisplay.vnc.port = \"$vnc_port\"/g' '/vmfs/volumes/$target_datastore/$name/$name.vmx'"
@@ -777,6 +782,18 @@ dsbrowse() {
  $ssh root@$esx_server "ls -1 /vmfs/volumes/$1/" 	
 }
 
+export2desktop(){
+	vmid2name $1 || cleanup
+	vmid2datastore $1
+	vmid2relpath $1
+	relpath2vmdkpath
+	export_dir=$name"_export"
+	local_export_dir=${local_export_dir:-"./"}
+	$ssh root@$esx_server "cd '/vmfs/volumes/$datastore/$(dirname "$relpath")' && mkdir './$export_dir' && vmkfstools -i '/vmfs/volumes/$datastore/$vmdkpath' -d 2gbsparse './$export_dir/$name.vmdk' && cp '/vmfs/volumes/$datastore/$relpath' './$export_dir' && sed -i 's/\".*\.vmdk\"/\"$name.vmdk\"/g' './$export_dir/$(basename "$relpath")'"
+	$scp -r "root@$esx_server:'/vmfs/volumes/$datastore/$(dirname "$relpath")/$export_dir'" "$local_export_dir"
+	$ssh root@$esx_server "rm -rf '/vmfs/volumes/$datastore/$(dirname "$relpath")/$export_dir'"
+}
+
 before_filter() {
 
 remainder=$(($ram%4))
@@ -807,14 +824,14 @@ studio_before_filter ()
 
 }	# ----------  end of function studio_before_filter  ----------
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format:" "hcln:s:m:d:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
 do
 	    case "$1" in
-             -s)  esx_server=$2;shift;;
-             -m)  ram=$2;shift;;
+         -s)  esx_server=$2;shift;;
+         -m)  ram=$2;shift;;
 	     -d)  disk=$2;shift;;
 	     -n) name=$2;shift;;
 	     -c)  create_new="1";;
@@ -849,6 +866,7 @@ do
 	     --ds) datastore="$2";shift;;
 	     --format) format="$2";shift;;
 		 --clone) clone_id="$2";shift;;
+		 --export) export_id="$2";shift;local_export_dir="$3";shift;;
          -h) usage; exit ;;
 	     --help) usage; exit ;;
 	     --)        shift;break;;
@@ -917,7 +935,10 @@ if [[ -n $esx_server && -n $clone_id ]];then
 	clone $clone_id; cleanup
 fi
 
-
+#export
+if [[ -n $esx_server && -n $export_id ]];then
+	export2desktop $export_id; cleanup
+fi
 #power on and bios up
 if [ ! -z $power_on_vmid ]
 	then
