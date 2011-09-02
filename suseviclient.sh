@@ -425,7 +425,7 @@ vmid=$($ssh root@$esx_server "vim-cmd vmsvc/getallvms | grep '$name' | awk '{pri
 }
 
 vmid2name(){
-name=`$ssh root@$esx_server "vim-cmd vmsvc/get.summary $1 | grep name " | awk 'BEGIN { FS="\""; } { print $2; }'| cut -c 1-32`
+name=$($ssh root@$esx_server "vim-cmd vmsvc/get.summary $1 | grep name " | sed -n 's/name = "\(.*\)",/\1/p' | sed 's/^[ \t]*//;s/[ \t]*$//')
 if [ -z "$name" ]; then
  return 1
 fi
