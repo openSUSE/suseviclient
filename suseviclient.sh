@@ -640,7 +640,15 @@ snapshotremove(){
 	
 if [ ! -z $3 ]
 then
-$ssh root@$esx_server "vim-cmd vmsvc/snapshot.removeall $1"
+   $ssh root@$esx_server "vim-cmd vmsvc/snapshot.removeall $1" > /dev/null
+   echo "Removing all snapshots..."
+   while true;do
+	   snapshotcheck "$1"
+	   if [ $? -eq 2 ];then
+			echo "All snapshots removed"; break
+	   fi
+	   sleep 10s
+   done
 else
 snaplevel=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1 | grep '$2' | egrep -o '\-*'| wc -c"`
    
