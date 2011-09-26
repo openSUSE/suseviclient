@@ -228,7 +228,11 @@ imageupload() {
 
 	elif [ "$format" = "vmx" ] ; then
 		img_filename=$(basename $imagelink)
-		$ssh root@$esx_server "cd '/vmfs/volumes/$datastore/'; wget '$imagelink' && echo  \"Unpacking image, please wait...\" && tar -zxf '$img_filename' && rm '$img_filename' && mv '$short_name' '$name' && chown root:root -R './$name' " && echo "Image uploaded & unpacked"		
+		tarname=$(echo $img_filename| sed -n 's/\(.*\)\.vmx.tar.gz/\1.vmx.tar/p')
+		$ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && wget '$imagelink' && echo  \"Unpacking image, please wait...\" && gunzip '$img_filename'"
+		realname=$($ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && tar -tf $tarname | sed -n 's/\///g;1p'")
+		realfilename=$($ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && tar -tf $tarname |sed -n 's/.*\/\(.*\)\.vmdk/\1/p'")
+		$ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' &&  tar -xf $tarname && rm '$tarname' && mv '$realname' '$name' && chown root:root -R './$name' && cd './$name' && mv '$realfilename'.vmx '$name.vmx' && mv '$realfilename'.vmdk '$name.vmdk'" && echo "Image uploaded & unpacked"		
 	fi
 	
 }
@@ -246,8 +250,8 @@ vmx_convert ()
 	vnc_port
         vnc_conf
         pathtoconfig="/vmfs/volumes/$datastore/$name/$name.vmx"
-	$ssh root@$esx_server "sed -i 's/virtualHW.version = \"4\"/virtualHW.version = \"7\"/g; s/ide0:0.*//g' '$pathtoconfig'" 
-	echo -e "$vnc_config\nethernet0.networkName = \"VM Network\"" | $ssh root@$esx_server "cat >> $pathtoconfig"
+	$ssh root@$esx_server "sed -i 's/virtualHW.version = \"4\"/virtualHW.version = \"7\"/g; s/ide0:0.*//g; s/$realfilename/$name/g' '$pathtoconfig'" 
+	echo -e "$vnc_config\nethernet0.networkName = \"VM Network\"" | $ssh root@$esx_server "cat >> '$pathtoconfig'"
 
 }	# ----------  end of function vmx_convert  ----------
 
@@ -369,7 +373,7 @@ if [[ ! -z $studio ]]; then
 	[ $format = "oemiso" ] && $ssh root@$esx_server "mkdir \"/vmfs/volumes/$datastore/$name\"" && iso="$datastore/$name/studio.iso"
 	
 	imageupload "$apiuser" "$apikey" ;
-	[ $format = "vmx" ] && vmdk_convert "${name// /\ }" && vmx_convert && $ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$datastore/$name/$name.vmx'" && echo "Virtual machine \"$name\" created" && cleanup
+	[ $format = "vmx" ] && vmdk_convert "$name" && vmx_convert && $ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$datastore/$name/$name.vmx'" && echo "Virtual machine \"$name\" created" && cleanup
 	else
 	echo "Please provide studio apiuser and apikey"; exit
 	fi
@@ -918,7 +922,7 @@ if [ ! -z $studio ] ; then
 	appliance_name=${appliance_name// /_}
 	appliance_name=$(strip_chars "$appliance_name")
 	short_name="$appliance_name-$version"
-	name="$appliance_name.$arch-$version"
+	name=${name:-$appliance_name.$arch-$version}
 	fi
 	
 	
