@@ -1,0 +1,76 @@
+Tool to create and control virtual machines on ESXi servers
+
+VM creation:
+------------
+-s <ip or domain name of ESX server>
+-c Create new vm
+   -n <label> for the new virtual machine
+   -m <size> of RAM in megabytes. Can be omitted. Default is 512 MB
+   -d <size> of hard disk (M/G). Can be omitted. Default is 5 GB
+   --ds <datastore name> where VM will be created (optional)
+   --iso <path> to ISO image in format of <datastore>/path/to/image.iso (optional)
+   --network <name> connect VM network adapter to specified virtual network(optional)
+   --studio <appliance_id> Deploy appliance from SUSE Studio server (optional), see studio options below
+   --vncpass <password> set password to access vm console via vnc. Use this if you need non-interactive VM creation.
+   --novncpass omits setting vnc password so no authorization will be required
+--clone <vmid> Clone the specified VM. Can be extended with -n <label> and --ds <datastore> options
+--export <vmid> <local_directory> Export VM from ESXi to local desktop to use with VMWare desktop products(Workstation/Player)   
+
+Generic management:
+------------------- 
+-l List all guests
+--dslist List all datastores
+--dsbrowse List files on specified datastore
+--status <vmid> Get parametres of VM
+--poweron <vmid> Power On VM
+   --bios Launch a VM's BIOS after start
+--poweroff <vmid> Power Off VM
+--reset <vmid> Reset VM
+--vnc <vmid> Connect to VM via VNC
+--addvnc <vmid> Add VNC support to an existing VM ( guest need to be restarted to take effect)
+--snapshotlist <vmid> Get list of snapshots for current VM
+--snapshot <vmid> --snapname <snapshot label> Make snapshot of current VM status
+--snapshotremove <vmid> --snapname "<snapshot name>" Remove a snapshot with specified name
+--snapshotremove <vmid> --all Remove all snapshots for specidied VM
+--revert <vmid> --snapname <snapshot label> Revert from snapshot
+--remove <vmid> Delete VM
+
+
+SUSE Studio specific options:
+-----------------------------
+--studioserver <custom.server.com> Custom suse studio server ( if option is omitted susestudio.com is a default)
+--apiuser <api_user> your SUSE Studio user (see http://susestudio.com/user/show_api_key )
+--apikey <api_key> your SUSE Studio api key
+--appliances Get appliance list from SUSE Studio
+--buildimage <appliance_id> Build Preload ISO of specified appliance for deployment 
+--buildstatus <appliance_id> Get info on running builds of specified appliance
+--format <image format> specify oemiso or vmx here
+--help This help
+
+Network Management:
+-------------------
+
+--networks <vmid> list networks used by VM
+--vswitches list virtual switches
+--nics list network adapters available on ESXi server
+--vswitchadd <name> Create virtual switch with default corresponding network port group
+--vswitchremove <name> Remove virtual switch
+
+Configuration file:
+--------------------
+You can specify frequently used options in configuration file of ~/.suseviclientrc 
+Example of such a config file with comments:
+
+#Default ESXi server to work with
+esx_server="thessalonike.suse.de"
+
+#SUSE Studio API user
+apiuser="studiouser"
+
+#SUSE Studio API key
+apikey="studioapikey"
+
+#Custom SUSE Studio server
+studioserver="istudio.suse.de"
+
+All specified directives in config file are easily overridable by the related command control option.
