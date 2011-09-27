@@ -342,6 +342,13 @@ SUSE Studio specific options:
 --format <image format> specify oemiso or vmx here
 --help This help
 
+Network Management:
+-------------------
+
+--networks <vmid> list networks used by VM
+--vswitches list virtual switches
+--nics list network adapters available on ESXi server
+
 Configuration file:
 --------------------
 You can specify frequently used options in configuration file of ~/.suseviclientrc 
@@ -836,7 +843,30 @@ studio_before_filter ()
 
 }	# ----------  end of function studio_before_filter  ----------
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export:" "hcln:s:m:d:" "$@"` || usage 
+#virtual switch management
+
+vswitcheslist()
+{
+	$ssh root@$esx_server "esxcfg-vswitch -l"
+}
+
+niclist()
+{
+	$ssh root@$esx_server "esxcfg-nics -l"
+}
+
+networks()
+{
+   nets=$($ssh root@$esx_server "vim-cmd vmsvc/get.networks $1 | sed -n 's/name = \"\(.*\)\",/\1/gp' | sed 's/^[ \t]*//;s/[ \t]*$//'")
+   echo "$nets"| while read line
+		do
+		counter=${counter:-1}
+		echo "$counter) \"$line\""
+		counter=$(($counter+1))
+		done
+}
+
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -852,7 +882,7 @@ do
 	     --novncpass) no_vnc_password=1;;
 	     --iso) iso="$2";shift;;
 	     --vmdk) vmdk="$2";shift;;
-	     --status) ssh root@$esx_server "vim-cmd vmsvc/get.summary $2"| grep -E '(powerState|toolsStatus|hostName|ipAddress|name =|vmPathName|memorySizeMB|guestMemoryUsage|hostMemoryUsage)' ;shift; exit;;
+	     --status) status_id="$2";shift;;
 	     --bios) bios_once="1";shift;;
 	     --poweron) power_on_vmid=$2;shift;;
 	     --poweroff) power_off $2 ;exit;;
@@ -879,6 +909,9 @@ do
 	     --format) format="$2";shift;;
 		 --clone) clone_id="$2";shift;;
 		 --export) export_id="$2";shift;local_export_dir="$3";shift;;
+		 --vswitches) vswitcheslist="1";shift;;
+		 --nics) niclist="1";shift;;
+		 --networks) networks_id="$2";shift;;
          -h) usage; exit ;;
 	     --help) usage; exit ;;
 	     --)        shift;break;;
@@ -1009,6 +1042,26 @@ fi
 
 if [[ -n $apiuser &&  -n $apikey && ! -z $buildstatus ]]
 then buildstatus "$apiuser" "$apikey" "$buildstatus"; exit
+fi
+
+#status
+if [ -n "$status_id" ];then
+	$ssh root@$esx_server "vim-cmd vmsvc/get.summary $status_id"| grep -E '(powerState|toolsStatus|hostName|ipAddress|name =|vmPathName|memorySizeMB|guestMemoryUsage|hostMemoryUsage)' | sed 's/^[ \t]*//;s/[ \t]*$//'
+	cleanup
+fi
+#network
+
+if [ -n "$networks_id" ];then
+	echo "Network Port Group(s): "
+	networks $networks_id
+	cleanup
+fi 
+if [ -n "$vswitcheslist" ];then
+	vswitcheslist; cleanup
+fi
+
+if [ -n "$niclist" ];then
+	niclist; cleanup
 fi
 
 usage
