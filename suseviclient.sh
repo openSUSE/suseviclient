@@ -224,12 +224,23 @@ imageupload() {
 
 	if [ "$format" = "oemiso" ] ; then
 
-		$ssh root@$esx_server "wget $imagelink -O  /vmfs/volumes/$datastore/${name// /\ }/studio.iso" && echo "Image uploaded"
+		$ssh root@$esx_server "wget $imagelink -O  /vmfs/volumes/$datastore/${name// /\ }/studio.iso"
+		if [ $? -eq 0 ]; then
+			echo "Image uploaded"
+		else
+			echo "Image upload failure :("; cleanup
+		fi
 
 	elif [ "$format" = "vmx" ] ; then
 		img_filename=$(basename $imagelink)
 		tarname=$(echo $img_filename| sed -n 's/\(.*\)\.vmx.tar.gz/\1.vmx.tar/p')
-		$ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && wget '$imagelink' && echo  \"Unpacking image, please wait...\" && gunzip '$img_filename'"
+		$ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && wget '$imagelink'"
+		if [ $? -eq 0 ]; then
+			echo "Image uploaded"
+		else
+			echo "Image upload failure :("; cleanup
+		fi
+		$ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && echo  \"Unpacking image, please wait...\" && gunzip '$img_filename'"
 		realname=$($ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && tar -tf $tarname | sed -n 's/\///g;1p'")
 		realfilename=$($ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && tar -tf $tarname |sed -n 's/.*\/\(.*\)\.vmdk/\1/p'")
 		$ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' &&  tar -xf $tarname && rm '$tarname' && mv '$realname' '$name' && chown root:root -R './$name' && cd './$name' && mv '$realfilename'.vmx '$name.vmx' && mv '$realfilename'.vmdk '$name.vmdk'" && echo "Image uploaded & unpacked"		
