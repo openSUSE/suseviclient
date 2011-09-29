@@ -319,7 +319,8 @@ Generic management:
 --dsbrowse List files on specified datastore
 --status <vmid> Get parametres of VM
 --poweron <vmid> Power On VM
-   --bios Launch a VM's BIOS after start	
+   --bios Launch a VM's BIOS after start
+   --autoyast <network path> (http/ftp/nfs) to autoyast xml control file
 --poweroff <vmid> Power Off VM
 --reset <vmid> Reset VM
 --vnc <vmid> Connect to VM via VNC
@@ -459,52 +460,6 @@ vmdkpath=$($ssh root@$esx_server "grep -i \.vmdk '/vmfs/volumes/$datastore/$relp
 vmdkpath="$(dirname "$relpath")/$vmdkpath"
 }
 
-power_on() {
-
-    
-	if [ ! -z $bios_once ] 
-	then
-	vmid2datastore $1
-    vmid2relpath $1
-	biosonce_config="bios.forceSetupOnce = \"TRUE\""
-	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' && sed -i s/bios\.forceSetupOnce.*/bios\.forceSetupOnce=TRUE/g '/vmfs/volumes/$datastore/$relpath'" > /dev/null
-	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$relpath' && vim-cmd vmsvc/reload $1" > /dev/null
- 	fi
- 	
-output=$($ssh root@$esx_server "vim-cmd vmsvc/power.on $1 2>&1")
-if [ $? -eq 0 ] ; then
-        echo "VM powered on"
-  else
-      echo "$output" | sed -n 's/msg = "\(.*\)".*/\1/p'; return 1
-fi
-
-message=$($ssh root@$esx_server "vim-cmd vmsvc/message $1| head -1 | grep -oE '[0-9]{1,}'")
-if [[ $message != "" ]];then
-$ssh root@$esx_server "vim-cmd vmsvc/message $1 $message 2"
-fi
-
-}
-
-power_off() {
-output=$(ssh root@$esx_server "vim-cmd vmsvc/power.off $1 2>&1")
-if [ $? -eq 0 ] ; then
-	echo "VM powered off"; return 0
-  else
-      echo "$output" | sed -n 's/msg = "\(.*\)".*/\1/p' ; return 1
-fi
-}
-
-
-reset() {
-
-output=$(ssh root@$esx_server "vim-cmd vmsvc/power.reset $1 2>&1")
-if [ $? -eq 0 ] ; then
-	echo "VM resetted"; return 0
-  else
-      echo "$output" | sed -n 's/msg = "\(.*\)".*/\1/p' ; return 1
-fi
-	
-}
 
 vnc_connect(){
 vncpassword=""
@@ -599,6 +554,61 @@ vnc_conn_port=`$ssh root@$esx_server "grep vnc\.port /vmfs/volumes/$datastore/'$
 	else
 		echo "vnc is not enabled on this virtual machine. Please try --addvnc feature."; return 1
 	fi
+}
+
+power_on() {
+
+    
+	if [ ! -z $bios_once ] 
+	then
+	vmid2datastore $1
+    vmid2relpath $1
+	biosonce_config="bios.forceSetupOnce = \"TRUE\""
+	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' && sed -i s/bios\.forceSetupOnce.*/bios\.forceSetupOnce=TRUE/g '/vmfs/volumes/$datastore/$relpath'" > /dev/null
+	$ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$relpath' && vim-cmd vmsvc/reload $1" > /dev/null
+ 	fi
+ 	
+output=$($ssh root@$esx_server "vim-cmd vmsvc/power.on $1 2>&1")
+if [ $? -eq 0 ] ; then
+        echo "VM powered on"
+  else
+      echo "$output" | sed -n 's/msg = "\(.*\)".*/\1/p'; return 1
+fi
+
+message=$($ssh root@$esx_server "vim-cmd vmsvc/message $1| head -1 | grep -oE '[0-9]{1,}'")
+if [[ $message != "" ]];then
+$ssh root@$esx_server "vim-cmd vmsvc/message $1 $message 2"
+fi
+
+	if [ -n "$autoyast" ];then
+		test -f ./vnc.rb || echo "Can't find vnc.rb, sorry: no autoyast string will be passed"
+		vmid2datastore $1
+        vmid2relpath $1
+		get_vnc_port
+		./vnc.rb "$esx_server" "$vnc_conn_port" test "netsetup=dhcp autoyast=$autoyast"
+	fi
+
+}
+
+power_off() {
+output=$(ssh root@$esx_server "vim-cmd vmsvc/power.off $1 2>&1")
+if [ $? -eq 0 ] ; then
+	echo "VM powered off"; return 0
+  else
+      echo "$output" | sed -n 's/msg = "\(.*\)".*/\1/p' ; return 1
+fi
+}
+
+
+reset() {
+
+output=$(ssh root@$esx_server "vim-cmd vmsvc/power.reset $1 2>&1")
+if [ $? -eq 0 ] ; then
+	echo "VM resetted"; return 0
+  else
+      echo "$output" | sed -n 's/msg = "\(.*\)".*/\1/p' ; return 1
+fi
+	
 }
 
 snapshotcheck(){
@@ -888,7 +898,7 @@ studio_before_filter ()
 
 }	# ----------  end of function studio_before_filter  ----------
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network:" "hcln:s:m:d:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast:" "hcln:s:m:d:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -937,6 +947,7 @@ do
 		 --vswitchadd) vswitch_add_name="$2";shift;;
 		 --vswitchremove) vswitch_remove_name="$2";shift;;
 		 --network) network_name="$2";shift;;
+		 --autoyast) autoyast="$2";shift;;
          -h) usage; exit ;;
 	     --help) usage; exit ;;
 	     --)        shift;break;;
