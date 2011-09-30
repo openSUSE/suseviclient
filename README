@@ -1,3 +1,5 @@
+
+
 Tool to create and control virtual machines on ESXi servers
 
 VM creation:
@@ -13,9 +15,13 @@ VM creation:
    --studio <appliance_id> Deploy appliance from SUSE Studio server (optional), see studio options below
    --vncpass <password> set password to access vm console via vnc. Use this if you need non-interactive VM creation.
    --novncpass omits setting vnc password so no authorization will be required
+-e <vmid> Edit existing VM. Available parameters to change with the same semantics as for VM creation:
+   -n <label> 
+   --iso <path>
+   --network <name>
 --clone <vmid> Clone the specified VM. Can be extended with -n <label> and --ds <datastore> options
 --export <vmid> <local_directory> Export VM from ESXi to local desktop to use with VMWare desktop products(Workstation/Player)   
-
+			
 Generic management:
 ------------------- 
 -l List all guests
@@ -24,6 +30,7 @@ Generic management:
 --status <vmid> Get parametres of VM
 --poweron <vmid> Power On VM
    --bios Launch a VM's BIOS after start
+   --autoyast <network path> (http/ftp/nfs) to autoyast xml control file
 --poweroff <vmid> Power Off VM
 --reset <vmid> Reset VM
 --vnc <vmid> Connect to VM via VNC
@@ -74,3 +81,4 @@ apikey="studioapikey"
 studioserver="istudio.suse.de"
 
 All specified directives in config file are easily overridable by the related command control option.
+
