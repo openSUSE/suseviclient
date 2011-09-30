@@ -320,6 +320,10 @@ VM creation:
    --studio <appliance_id> Deploy appliance from SUSE Studio server (optional), see studio options below
    --vncpass <password> set password to access vm console via vnc. Use this if you need non-interactive VM creation.
    --novncpass omits setting vnc password so no authorization will be required
+-e <vmid> Edit existing VM. Available parameters to change with the same semantics as for VM creation:
+   -n <label> 
+   --iso <path>
+   --network <name>
 --clone <vmid> Clone the specified VM. Can be extended with -n <label> and --ds <datastore> options
 --export <vmid> <local_directory> Export VM from ESXi to local desktop to use with VMWare desktop products(Workstation/Player)   
 			
@@ -909,7 +913,65 @@ studio_before_filter ()
 
 }	# ----------  end of function studio_before_filter  ----------
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast:" "hcln:s:m:d:" "$@"` || usage 
+status()
+{
+	$ssh root@$esx_server "vim-cmd vmsvc/get.summary $status_id"| grep -E '(powerState|toolsStatus|hostName|ipAddress|name =|vmPathName|memorySizeMB|guestMemoryUsage|hostMemoryUsage)' | sed 's/^[ \t]*//;s/[ \t]*$//'
+	$ssh root@$esx_server "vim-cmd vmsvc/device.getdevices $status_id|grep ISO" | sed 's/summary =/ISO =/g;s/^[ \t]*//;s/[ \t]*$//'
+}
+
+#edit existing VM
+
+editiso()
+{
+	vmid2datastore $1
+	vmid2relpath $1
+	$ssh root@$esx_server "grep -iq \.iso '/vmfs/volumes/$datastore/$relpath'"
+	if [ $? -eq 0 ];then
+		iso=${iso//\//\\/}
+		$ssh root@$esx_server "sed -i 's/\.filename = \".*\.iso\"/\.filename = \"\/vmfs\/volumes\/$iso\"/' '/vmfs/volumes/$datastore/$relpath'"
+		if [ $? -eq 0 ];then
+			echo "Successfuly changed ISO to $iso"
+		fi
+	  else
+		iso_config="
+ide1:0.present = \"true\"
+ide1:0.deviceType = \"cdrom-image\"
+ide1:0.filename = \"/vmfs/volumes/$iso\"
+ide1:0.startConnected = \"TRUE\""
+		echo "$iso_config" | $ssh root@$esx_server "cat >> '/vmfs/volumes/$datastore/$relpath'"
+		if [ $? -eq 0 ];then
+			echo "Successfuly added ISO: $iso"
+		fi
+	fi
+}
+
+editname()
+{
+	vmid2datastore $1
+	vmid2relpath $1
+	$ssh root@$esx_server "sed -i 's/displayname = \".*\"/displayname = \"$name\"/' '/vmfs/volumes/$datastore/$relpath'"
+	if [ $? -eq 0 ];then
+			echo "Successfuly changed name to \"$name\""
+	fi
+}
+
+editnetwork()
+{
+	if [ $(portgroupcheck "$network_name") = 0 ];then
+		echo "Virtual network \"$network_name\" does not exist"; cleanup
+	fi
+	
+	vmid2datastore $1
+	vmid2relpath $1
+	
+	$ssh root@$esx_server "sed -i 's/ethernet\(.\)\.networkName = \"VM Network\"/ethernet\1\.networkName = \"$network_name\"/' '/vmfs/volumes/$datastore/$relpath'"
+	
+	if [ $? -eq 0 ];then
+			echo "Successfuly changed network to \"$network_name\""
+	fi
+}
+
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast:" "hcln:s:m:d:e:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -921,6 +983,7 @@ do
 	     -n) name=$2;shift;;
 	     -c)  create_new="1";;
 	     -l)  list="1";;
+	     -e)  edit_vmid="$2";shift;;
 	     --vncpass) vnc_password="$2";shift;;
 	     --novncpass) no_vnc_password=1;;
 	     --iso) iso="$2";shift;;
@@ -1022,6 +1085,32 @@ if [[ ! -z $create_new  && -n $esx_server && -n $ram && -n $disk && -n $name ]]
 	cleanup
 	fi
 
+#edit
+if [[ -n $esx_server && -n $edit_vmid ]];then
+	powerstate $edit_vmid
+
+	if [[ "$pwstate" = "Powered on"  ]]; then
+	echo "You should switch the VM off before configuration change. Please make a correct shutdown of the running OS or try '--poweroff $edit_vmdid'"
+	cleanup
+	fi
+	
+	if [ -n "$iso" ]; then
+		editiso $edit_vmid;
+	fi
+	
+	if [ -n "$name" ]; then
+		editname $edit_vmid;
+	fi
+	
+	if [ -n "$network_name" ];then
+		editnetwork $edit_vmid
+	fi
+	
+	$ssh root@$esx_server "vim-cmd vmsvc/reload $edit_vmid"
+	
+	cleanup
+fi
+
 #clone
 
 if [[ -n $esx_server && -n $clone_id ]];then
@@ -1094,7 +1183,7 @@ fi
 
 #status
 if [ -n "$status_id" ];then
-	$ssh root@$esx_server "vim-cmd vmsvc/get.summary $status_id"| grep -E '(powerState|toolsStatus|hostName|ipAddress|name =|vmPathName|memorySizeMB|guestMemoryUsage|hostMemoryUsage)' | sed 's/^[ \t]*//;s/[ \t]*$//'
+	status
 	cleanup
 fi
 #network
