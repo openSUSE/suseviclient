@@ -289,14 +289,14 @@ initial_info() {
 	 pwstate=$?
 	 if [ $pwstate -eq 0 ]
 	 then
-	 finallist=$finallist"\033[32mPowered on\033[0m\t$line\n"
+	 finallist=$finallist"\033[32mPowered on\033[0m       $line\n"
 	 else
-	 finallist=$finallist"\033[31mPowered off\033[0m\t$line\n"
+	 finallist=$finallist"\033[31mPowered off\033[0m      $line\n"
 	 fi 
 	 
 	done < $tempfile
-	finallist=`echo "$finallist"|sort`
-	echo -e "$finallist"
+	finallist=`echo -n "$finallist"|sort`
+	echo -ne "$finallist"
 	rm $tempfile
 
 
@@ -339,6 +339,7 @@ Generic management:
 --poweroff <vmid> Power Off VM
 --reset <vmid> Reset VM
 --vnc <vmid> Connect to VM via VNC
+--showvncport <vmid> Print VNC port assigned to specified VM 
 --addvnc <vmid> Add VNC support to an existing VM ( guest need to be restarted to take effect)
 --snapshotlist <vmid> Get list of snapshots for current VM
 --snapshot <vmid> --snapname <snapshot label> Make snapshot of current VM status
@@ -562,7 +563,7 @@ fi
 
 get_vnc_port(){
 
-vnc_conn_port=`$ssh root@$esx_server "grep vnc\.port /vmfs/volumes/$datastore/'$relpath'" | awk '{print $3}' | sed s/\"//g`
+vnc_conn_port=`$ssh root@$esx_server "grep vnc\.port '/vmfs/volumes/$datastore/$relpath'" | awk '{print $3}' | sed s/\"//g`
 
 	if [ ! -z "$vnc_conn_port" ] ; then
 		return 0
@@ -919,6 +920,18 @@ status()
 	$ssh root@$esx_server "vim-cmd vmsvc/device.getdevices $status_id|grep ISO" | sed 's/summary =/ISO =/g;s/^[ \t]*//;s/[ \t]*$//'
 }
 
+showvncport()
+{
+  vmid2datastore $1
+  vmid2relpath $1
+  get_vnc_port
+  if [ $? -eq 0 ];then
+  echo $vnc_conn_port; return 0
+  else 
+  return 1
+  fi
+}
+
 #edit existing VM
 
 editiso()
@@ -971,7 +984,7 @@ editnetwork()
 	fi
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast:" "hcln:s:m:d:e:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast: showvncport:" "hcln:s:m:d:e:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -1022,6 +1035,7 @@ do
 		 --vswitchremove) vswitch_remove_name="$2";shift;;
 		 --network) network_name="$2";shift;;
 		 --autoyast) autoyast="$2";shift;;
+		 --showvncport) showvncport_vmid="$2";shift;;
          -h) usage; exit ;;
 	     --help) usage; exit ;;
 	     --)        shift;break;;
@@ -1036,7 +1050,7 @@ done
 [[ -n $esx_server && ! -z $list ]] && initial_info && cleanup
 
 # iso file check
-if [ ! -z $iso ];then	
+if [ ! -z "$iso" ];then	
 	$ssh root@$esx_server "test -e '/vmfs/volumes/$iso'"
 	[ $? -eq 1 ] && echo "ISO image does not exist on datastore" && cleanup
 fi
@@ -1184,6 +1198,11 @@ fi
 #status
 if [ -n "$status_id" ];then
 	status
+	cleanup
+fi
+
+if [ -n "$showvncport_vmid" ];then
+	showvncport $showvncport_vmid
 	cleanup
 fi
 #network

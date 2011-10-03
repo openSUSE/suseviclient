@@ -1,0 +1,28 @@
+<!doctype html>  
+<html lang="en">  
+<head>  
+  <meta charset="utf8">  
+  <title><%= @title + ' | SUSE VI Client' %></title>  
+  <link href="/reset.css" rel="stylesheet">  
+  <link href="/style.css" rel="stylesheet"> 
+  <script type="text/javascript" src="/jquery.js"></script>
+  <script type="text/javascript" src="/custom.js"></script> 
+
+</head>  
+<body>  
+  <header>  
+    <hgroup>  
+      <h1><a href="/">SUSE VI Client</a></h1>  
+      <h2>Web version</h2>  
+    </hgroup>  
+  </header>  
+  
+  <div id="main">  
+    <%= yield %>  
+  </div>  
+  
+  <footer>  
+    <p><small>A product of <a href="http://hackweek.opensuse.org">#hackweek7</a> fun.</small></p>  
+  </footer>  
+</body>  
+</html>  

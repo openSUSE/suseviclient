@@ -1,0 +1,49 @@
+<p><a href="#" id="slick-toggle">Create VM</a></p>
+<div id="slickbox">
+<section id="add">
+  <form action="/" method="post">
+    <label>VM Label</label><p><input type="text" name="vmname" placeholder="Name for VM&hellip;"></p>
+    <label>Memory (MB)</label><p><input type="text" name="memory"></p>
+    <label>Disk size (GB)</label><p><input type="text" name="disksize"></p>
+    <label>Datastore</label><p><input type="text" name="datastore"></p>
+    <label>Provision from</label><p>
+    <input type="radio" name="creation_type" value="pxe" checked >PXE
+    <input type="radio" name="creation_type" value="iso">ISO
+    <input type="radio" name="creation_type" value="studio">SUSE Studio</p>
+    <div id="iso" class="desc" style="display: none;">
+    <label>Path to ISO</label><p><input type="text" name="pathtoimage"></p>
+    </div>
+    <div id="studio" class="desc" style="display: none;">
+    <label>Appliance ID</label><p><input type="text" name="appliance_id"></p>
+    </div>
+    <p><input type="submit" value="Create VM!"></p>
+  </form>
+</section>
+</div>
+
+<% @vmarray.each do |vm| %>
+  <article <%= 'class="complete"' if vm.pwstate == "\033[31mPowered off\033[0m" %>>
+    <p>
+      <%=h vm.name %>
+      <% if vm.pwstate == "\033[31mPowered off\033[0m" %> 
+      <span><a href="/<%= vm.vmid %>">[edit]</a></span>
+      <% end %>
+    </p>
+   <p class="links">
+      <a href="/<%= vm.vmid %>/power/<%= 
+      if vm.pwstate == "\033[31mPowered off\033[0m"
+        'on' 
+      else 
+        'off'
+      end %>
+      ">&#8623;</a>
+    </p>
+    <% if vm.pwstate == "\033[32mPowered on\033[0m" %>
+    <p class="links">
+    <a href="/<%= vm.vmid %>/console" target="_new"><img src=/images/monitor.png></img></a>
+    </p>
+    <% end %>
+    <p class="meta">Config: <%= vm.config %></p>
+  </article>
+<% end %>
+
