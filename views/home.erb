@@ -1,11 +1,21 @@
-<p><a href="#" id="slick-toggle">Create VM</a></p>
+<% %w[notice error warning alert info].each do |key| %>
+  <% if flash[key] %>
+    <div id="<%= key %>" class="flash">
+    <ul>
+      <%= flash[key] %>
+    </ul>
+    </div>
+  <% end %>
+<% end %>
+<table>
+<tr><td width="100%"><p><a href="#" id="slick-toggle">Create VM</a></p>
 <div id="slickbox">
 <section id="add">
   <form action="/" method="post">
     <label>VM Label</label><p><input type="text" name="vmname" placeholder="Name for VM&hellip;"></p>
-    <label>Memory (MB)</label><p><input type="text" name="memory"></p>
-    <label>Disk size (GB)</label><p><input type="text" name="disksize"></p>
-    <label>Datastore</label><p><input type="text" name="datastore"></p>
+    <label>Memory (MB)</label><p><input type="text" name="memory" placeholder="512"></p>
+    <label>Disk size (GB)</label><p><input type="text" name="disksize" placeholder="5"></p>
+    <label>Datastore</label><p><input type="text" name="datastore" placeholder="datastore1"></p>
     <label>Provision from</label><p>
     <input type="radio" name="creation_type" value="pxe" checked >PXE
     <input type="radio" name="creation_type" value="iso">ISO
@@ -19,8 +29,21 @@
     <p><input type="submit" value="Create VM!"></p>
   </form>
 </section>
-</div>
-
+</div></td>
+<td>
+<p>
+<form name="serverlist" action="/" method="post">
+	<input type="hidden" name="_method" value="put">
+	<select name="server" id="server">
+		<%
+		@serverlist.each_line do |line| %>
+			<option value="<%=line%>" <% if session[:server] == line.chomp() %> selected="yes" <% end %> ><%=line%>
+		<% end %>
+	</select>
+</form>
+<p></td>
+</tr>
+</table>
 <% @vmarray.each do |vm| %>
   <article <%= 'class="complete"' if vm.pwstate == "\033[31mPowered off\033[0m" %>>
     <p>

@@ -35,11 +35,19 @@ scp="scp -o ControlPath=\"$CONTROL\""
 }
 
 cleanup() {
-[ ! -z $MASTERPID ] && kill $MASTERPID && exit
+[ ! -z $MASTERPID ] && kill $MASTERPID 
+if [ -n "$1" ];then
+exit $1
+else 
+exit 0
+fi
 }
 
 #generic helpers
 yesno (){
+if [ -n "$globalyes" ]; then
+	return 0
+fi
 while true
 do
 echo "$*"
@@ -404,7 +412,6 @@ if [[ ! -z $studio ]]; then
 	else
 	echo "Please provide studio apiuser and apikey"; exit
 	fi
-	exit
 fi
 
 config="
@@ -984,7 +991,7 @@ editnetwork()
 	fi
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast: showvncport:" "hcln:s:m:d:e:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast: showvncport:" "hclyn:s:m:d:e:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -997,6 +1004,7 @@ do
 	     -c)  create_new="1";;
 	     -l)  list="1";;
 	     -e)  edit_vmid="$2";shift;;
+	     -y)  globalyes="1";;
 	     --vncpass) vnc_password="$2";shift;;
 	     --novncpass) no_vnc_password=1;;
 	     --iso) iso="$2";shift;;
@@ -1202,8 +1210,8 @@ if [ -n "$status_id" ];then
 fi
 
 if [ -n "$showvncport_vmid" ];then
-	showvncport $showvncport_vmid
-	cleanup
+	showvncport $showvncport_vmid && cleanup
+	cleanup 1
 fi
 #network
 

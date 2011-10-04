@@ -25,4 +25,18 @@ $(document).ready(function() {
      $("div.desc").hide();
      $('#' + test).show();
   });
+	
+	// auto submit serverlist form
+	$("#server").change(function() {
+     this.form.submit();
+ });
+	// ask if we are sure to delete
+	function check() {
+  apprise("Are you sure?", {'verify': true}, function(r)
+          { if(r) { alert('true'); } else { alert('fasle'); } });}
+
+	$("#delete").click(function() {
+ 		 check()
+	});      
 });
+
