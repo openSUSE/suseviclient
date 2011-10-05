@@ -323,11 +323,15 @@ VM creation:
    -m <size> of RAM in megabytes. Can be omitted. Default is 512 MB
    -d <size> of hard disk (M/G). Can be omitted. Default is 5 GB
    --ds <datastore name> where VM will be created (optional)
-   --iso <path> to ISO image in format of <datastore>/path/to/image.iso (optional)
    --network <name> connect VM network adapter to specified virtual network(optional)
-   --studio <appliance_id> Deploy appliance from SUSE Studio server (optional), see studio options below
    --vncpass <password> set password to access vm console via vnc. Use this if you need non-interactive VM creation.
    --novncpass omits setting vnc password so no authorization will be required
+
+	 
+   --iso <path> to ISO image in format of <datastore>/path/to/image.iso
+	 --vmdk <path> to VMDK image in format of <datastore>/path/to/image.iso  
+   --studio <appliance_id> Deploy appliance from SUSE Studio server, see studio options below
+
 -e <vmid> Edit existing VM. Available parameters to change with the same semantics as for VM creation:
    -n <label> 
    --iso <path>
