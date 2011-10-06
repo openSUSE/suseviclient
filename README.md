@@ -56,9 +56,16 @@ Repeat VNC password:
 
 * List existing VMs
 
-suseviclient.sh -l | grep "ISO Example"
+suseviclient.sh -l
 
-Powered off      64     ISO Example          [datastore1] ISO Example/ISO Example.vmx
+Powerstate      VMID    VM Label                                Config file
+
+
+Powered on       16     SLES4VMware 32bit      [datastore1] SLES4VMware 32bit/SLES4VMware 32bit.vmx
+
+Powered on       32     SLES4VMware 64bit      [datastore1] SLES4VMware 64bit/SLES4VMware 64bit.vmx
+
+Powered off      64     ISO Example            [datastore1] ISO Example/ISO Example.vmx
 
 * Power on VM
 
