@@ -36,23 +36,18 @@ ESXi 5.0 support is planned but not yet tested/implemented.
 Examples
 --------
 
-cat > ~/.suseviclientrc << EOF
-
-esx_server="esxi.example.com"
-
-studioserver="susestudio.com"
-
-apiuser="your_user"
-
-apikey="your_key"
-
-EOF
+		cat > ~/.suseviclientrc << EOF
+		esx_server="esxi.example.com"
+		studioserver="susestudio.com"
+		apiuser="your_user"
+		apikey="your_key"
+		EOF
 
 1) Create VM of 512MB RAM and 8GB disk with ISO attached, poweron, connect to VM console:
 
-suseviclient.sh -c -n "ISO Example" -m 512 -d 8G --iso datastore1/path/to/image.iso
-Enter new VNC password:
-Repeat VNC password:
+		suseviclient.sh -c -n "ISO Example" -m 512 -d 8G --iso datastore1/path/to/image.iso
+		Enter new VNC password:
+		Repeat VNC password:
 
 * List existing VMs
 
@@ -66,25 +61,25 @@ suseviclient.sh -l
 
 * Power on VM
 
-suseviclient.sh --poweron 64
+		suseviclient.sh --poweron 64
 
 Where 64 is VM id.
 
 * Connect to VM console
 
-suseviclient.sh --vnc 64
+		suseviclient.sh --vnc 64
 
 2) Create VM from VMDK image( includes automated conversion of desktop vmdk to server version):
 
-suseviclient.sh -c -n "VMDK Example" --vmdk datastore1/path/to/image.vmdk
+		suseviclient.sh -c -n "VMDK Example" --vmdk datastore1/path/to/image.vmdk
 
 3) Create VM from SUSE Studio appliance
 
-suseviclient.sh -c -n "Appliance Deployment" --studio $appliance_id
+		suseviclient.sh -c -n "Appliance Deployment" --studio $appliance_id
 
 4) Create VM from PXE 
 
-suseviclient.sh -c -n "PXE Example" -m 512 -d 5G
+		suseviclient.sh -c -n "PXE Example" -m 512 -d 5G
 
 This will create blank VM with network attached. If PXE is enabled in your network it should be possible to perform a network boot after the VM is powered on.
 
@@ -108,9 +103,9 @@ The root fs on ESXi is not permanent storage, so it's recommended to put the key
 
 Assuming that you "datastore1" connected to ESXi server, do this
 
-1. mkdir /vmfs/volumes/datastore1/.ssh/ and place your ssh key there
+		mkdir /vmfs/volumes/datastore1/.ssh/ and place your ssh key there
 
-2. echo "cp -r /vmfs/volumes/datastore1/.ssh/ /" >> /etc/rc.local
+		echo "cp -r /vmfs/volumes/datastore1/.ssh/ /" >> /etc/rc.local
 
 That's it. It's all you need to start using suseviclient.
 
