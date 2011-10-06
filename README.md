@@ -50,7 +50,7 @@ EOF
 
 1) Create VM of 512MB RAM and 8GB disk with ISO attached, poweron, connect to VM console:
 
-* suseviclient.sh -c -n "ISO Example" -m 512 -d 8G --iso datastore1/path/to/image.iso
+suseviclient.sh -c -n "ISO Example" -m 512 -d 8G --iso datastore1/path/to/image.iso
 Enter new VNC password:
 Repeat VNC password:
 
