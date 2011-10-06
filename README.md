@@ -102,7 +102,7 @@ On the ESXi server side you have to enable ssh access, see:
 It's recommended to upload you ssh key to the server to not to enter password each time as passing management command through client.
 The root fs on ESXi is not permanent storage, so it's recommended to put the key on some connected datastore and automate the key copy on next reboot.
 
-Assuming that you "datastore1" connected to ESXi server, do this
+Assuming that you have "datastore1" connected to ESXi server, do this
 
 		mkdir /vmfs/volumes/datastore1/.ssh/ and place your ssh key there
 
