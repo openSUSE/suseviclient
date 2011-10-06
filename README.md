@@ -45,7 +45,7 @@ apikey="your_key"
 
 EOF
 
-1. Create VM of 512MB RAM and 8GB disk with ISO attached, poweron, connect to VM console:
++ 1. Create VM of 512MB RAM and 8GB disk with ISO attached, poweron, connect to VM console:
 
 * suseviclient.sh -c -n "ISO Example" -m 512 -d 8G --iso datastore1/path/to/image.iso
 Enter new VNC password:
@@ -69,15 +69,15 @@ suseviclient.sh --poweron 64
 
 suseviclient.sh --vnc 64
 
-2. Create VM from VMDK image( includes automated conversion of desktop vmdk to server version):
++ 2. Create VM from VMDK image( includes automated conversion of desktop vmdk to server version):
 
 suseviclient.sh -c -n "VMDK Example" --vmdk datastore1/path/to/image.vmdk
 
-3. Create VM from SUSE Studio appliance
++ 3. Create VM from SUSE Studio appliance
 
 suseviclient.sh -c -n "Appliance Deployment" --studio <appliance_id>
 
-4. Create VM from PXE 
++ 4. Create VM from PXE 
 
 suseviclient.sh -c -n "PXE Example" -m 512 -d 5G
 
