@@ -11,6 +11,11 @@ end
 
 class VM
   attr_accessor :vmid, :name, :pwstate, :config
+
+  def validate
+     
+  end
+
 end
 
 enable :sessions
@@ -55,9 +60,16 @@ post '/' do
   flash[:error] = "<li>VM name should be specified</li>"
   end
   
+  if not params[:vmname] =~ /[A-Za-z0-9]{20}/
+      flash[:error] = "#{flash[:error]}" "<li>VM name should be specified</li>"
+  end
+
+
   if params[:memory] == ''
   flash[:error] = "#{flash[:error]}" + "<li>Memory should be specified</li>"
   end
+  
+  
 
   redirect '/' if  (! flash[:error].nil? or flash[:error])
   halt "WTF - #{params[:vmname]}"

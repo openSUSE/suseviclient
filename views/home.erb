@@ -55,15 +55,15 @@
    <p class="links">
       <a href="/<%= vm.vmid %>/power/<%= 
       if vm.pwstate == "\033[31mPowered off\033[0m"
-        'on' 
+        'on" title="Power On"'
       else 
-        'off'
+        'off" title="Power Off"'
       end %>
-      ">&#8623;</a>
+      " >&#8623;</a>
     </p>
     <% if vm.pwstate == "\033[32mPowered on\033[0m" %>
     <p class="links">
-    <a href="/<%= vm.vmid %>/console" target="_new"><img src=/images/monitor.png></img></a>
+    <a href="/<%= vm.vmid %>/console" target="_new" title="Connect to VM console"><img src=/images/monitor.png></img></a>
     </p>
     <% end %>
     <p class="meta">Config: <%= vm.config %></p>
