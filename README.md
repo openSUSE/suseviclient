@@ -113,4 +113,6 @@ Web Interface
 -------------
 
 Web fronted is available with webfrontend.rb currently under initial development state but already fucntional.
-It built with neat Sinatra ( http://www.sinatrarb.com/ ) ruby framework ( so please '#gem install sinatra' if you want to try) and uses cool NoVNC ( VNC client using HTML5 WebSockets, Canvas,  http://kanaka.github.com/noVNC/ ) to allow access to VMs consoles.
+It is built with 
+*Sinatra ( http://www.sinatrarb.com/ ) ruby framework ( so please '#gem install sinatra' if you want to try) 
+*NoVNC ( VNC client using HTML5 WebSockets, Canvas,  http://kanaka.github.com/noVNC/ ) to allow access to VMs consoles.
