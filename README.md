@@ -7,29 +7,29 @@ Lightweight tool for ESXi management from Linux box.
 Features
 --------
 
--VM creation and provisioning from
++VM creation and provisioning from
 
-* ISO 
-* VMDK
-* SUSE Studio
-* PXE 
+	* ISO 
+	* VMDK
+	* SUSE Studio
+	* PXE 
 
--Cloning
++Cloning
 
--Snapshotting
++Snapshotting
 
--Virtual network management
++Virtual network management
 
--VM control through VNC
++VM control through VNC
 
--Exporting to VMware Workstation/Player
++Exporting to VMware Workstation/Player
 
 How does it work?
 -----------------
 
 It wraps and automates so called ESXi 'Tech Support Mode' which is effectively ssh server and number of special(poor documented) VMware  management commands.
 
-Currently it well tested with ESXi 4.0/4.1. It should also work with ESX, but not it was not covered by testing.
+Currently it well tested with ESXi 4.0/4.1. It should also work with ESX, but it was minimally covered by testing.
 
 ESXi 5.0 support is planned but not yet tested/implemented.
 
