@@ -39,8 +39,11 @@ Examples
 cat > ~/.suseviclientrc << EOF
 
 esx_server="esxi.example.com"
+
 studioserver="susestudio.com"
+
 apiuser="your_user"
+
 apikey="your_key"
 
 EOF
