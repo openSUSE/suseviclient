@@ -61,6 +61,8 @@ Powered off      64     ISO Example          [datastore1] ISO Example/ISO Exampl
 
 suseviclient.sh --poweron 64
 
+Where 64 is VM id.
+
 * Connect to VM console
 
 suseviclient.sh --vnc 64
@@ -90,8 +92,9 @@ Shell version of suseviclient introduces no dependencies except of bash, ssh and
 
 
 On the ESXi server side you have to enable ssh access, see: 
-* http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1003677 for ESXi 4.0
-* http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1017910 for ESXi 4.1/5.0
+
+*http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1003677 for ESXi 4.0
+*http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1017910 for ESXi 4.1/5.0
 
 It's recommended to upload you ssh key to the server to not to enter password each time as passing management command through client.
 The root fs on ESXi is not permanent storage, so it's recommended to put the key on some connected datastore and automate the key copy on next reboot.
