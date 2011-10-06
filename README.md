@@ -7,22 +7,22 @@ Lightweight tool for ESXi management from Linux box.
 Features
 --------
 
-+VM creation and provisioning from
+*VM creation and provisioning from
 
 	* ISO 
 	* VMDK
 	* SUSE Studio
 	* PXE 
 
-+Cloning
+*Cloning
 
-+Snapshotting
+*Snapshotting
 
-+Virtual network management
+*Virtual network management
 
-+VM control through VNC
+*VM control through VNC
 
-+Exporting to VMware Workstation/Player
+*Exporting to VMware Workstation/Player
 
 How does it work?
 -----------------
