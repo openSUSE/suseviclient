@@ -76,7 +76,7 @@ suseviclient.sh -c -n "VMDK Example" --vmdk datastore1/path/to/image.vmdk
 
 3) Create VM from SUSE Studio appliance
 
-suseviclient.sh -c -n "Appliance Deployment" --studio <appliance_id>
+suseviclient.sh -c -n "Appliance Deployment" --studio $appliance_id
 
 4) Create VM from PXE 
 
