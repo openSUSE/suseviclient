@@ -51,7 +51,7 @@ Examples
 
 * List existing VMs
 
-suseviclient.sh -l
+		suseviclient.sh -l
 
 		Powerstate      VMID    VM Label                                Config file
 		----------      ----    --------                                -----------
@@ -83,7 +83,8 @@ Where 64 is VM id.
 
 This will create blank VM with network attached. If PXE is enabled in your network it should be possible to perform a network boot after the VM is powered on.
 
-For full list of possible options see suseviclient.sh --help
+For full list of possible options see 
+		suseviclient.sh --help
 
 Installation
 ------------
