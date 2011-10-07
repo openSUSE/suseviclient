@@ -46,7 +46,7 @@ $.ajaxSetup ({
 var ajax_load = "<img src='images/ajax-loader.gif' alt='loading...' />";
 
 //  load() functions
-var loadUrl = "ajax/load.php";
+var loadUrl = "ajax/responce";
 $("#load_basic").click(function(){
   $("#result").html(ajax_load).load(loadUrl);
 });

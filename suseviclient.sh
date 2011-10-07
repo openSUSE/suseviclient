@@ -833,7 +833,11 @@ addvnc() {
 }
 
 dslist() {
- $ssh root@$esx_server "vim-cmd hostsvc/datastore/listsummary" | grep name | awk {'print $3'} | sed 's/",*//g' 	
+ if [ -n "$vmfsonly" ]; then
+  $ssh root@$esx_server "vim-cmd hostsvc/datastore/listsummary" | grep VMFS -B7 | grep name | sed -n 's/name = "\(.*\)",/\1/gp' |sed 's/^[ \t]*//;s/[ \t]*$//'|sort
+ else
+  $ssh root@$esx_server "vim-cmd hostsvc/datastore/listsummary" | grep name | awk {'print $3'} | sed 's/",*//g' | sort
+ fi
 }
 
 dsbrowse() {
@@ -995,7 +999,7 @@ editnetwork()
 	fi
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast: showvncport:" "hclyn:s:m:d:e:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast: showvncport:" "hclyn:s:m:d:e:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -1023,7 +1027,8 @@ do
 	     --remove) remove_vmid=$2;shift;;
 	     --vnc) vnc="$2";shift;;
 	     --addvnc) addvnc_vmid="$2";shift;;
-	     --dslist) dslist="1";shift;;
+	     --dslist) dslist="1";;
+       --vmfs) vmfsonly="1";;
 	     --dsbrowse) dsbrowse="$2";shift;;
 	     --snapshotlist) snapshotlist_vmid="$2";shift;;
 	     --snapname) snapname="$2";shift;;
@@ -1155,7 +1160,7 @@ fi
 
 #dslist execution
 if [[  -n $esx_server && ! -z $dslist ]] 
-then  dslist ; cleanup
+then dslist ; cleanup
 fi
 
 #dsbrowse execution

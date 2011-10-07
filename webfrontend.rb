@@ -2,6 +2,7 @@ require 'rubygems'
 require 'sinatra'
 require 'rack-flash'
 
+use Rack::Session::Pool
 use Rack::Flash
 
 helpers do
@@ -10,15 +11,45 @@ helpers do
 end
 
 class VM
-  attr_accessor :vmid, :name, :pwstate, :config
+  attr_accessor :vmid, :name, :pwstate, :config, :memory, :disksize, :datastore
 
-  def validate
-     
+  def validate(params)
+ 
+  if params[:vmname] == '' or not params[:vmname] =~ /^[A-Za-z0-9 ]{1,20}$/
+      errorpool = "#{errorpool}" "<li>VM name should be specified and consist of no more then 20 alphanumeric characters</li>"
   end
 
-end
 
-enable :sessions
+  if params[:memory] == '' or not params[:memory] =~ /^[0-9]{1,6}$/
+  errorpool = "#{errorpool}" + "<li>Memory should be specified and be an integer value</li>"
+  end
+
+  if params[:disksize] == '' or not params[:disksize] =~ /^[0-9]{1,6}$/
+  errorpool = "#{errorpool}" + "<li>Disk size  should be specified and be an integer value</li>"
+  end
+ 
+  if params[:datastore] == '' or not params[:datastore] =~ /^[A-Za-z0-9]{1,20}$/
+      errorpool = "#{errorpool}" "<li>Datastore should be specified and consist of no more then 20 alphanumeric characters</li>"
+  end
+
+ 
+  errorpool   
+  end
+  
+  def create(server,type, pathtoiso, pathtovmdk, applianceid)
+    if type == "pxe"
+      `./suseviclient.sh -s "#{server}" -c -n "#{name}" -m "#{memory}" -d "#{disksize}G" --ds "#{datastore}" --novncpass` 
+    elsif type == "iso"
+      `./suseviclient.sh -s "#{server}" -c -n "#{name}" -m "#{memory}" -d "#{disksize}G" --ds "#{datastore}" --iso "#{pathtoiso}" --novncpass`
+    elsif type == "vmdk"
+      `./suseviclient.sh -s "#{server}" -c -n "#{name}" -m "#{memory}" -d "#{disksize}G" --ds "#{datastore}" --vmdk "#{pathtovmdk}" --novncpass` 
+    elsif type == "studio"
+      `./suseviclient.sh -s "#{server}" -c -n "#{name}" --studio "#{applianceid}" --novncpass` 
+    else
+      "I have no idea what's happening"
+    end
+  end
+end
 
 HOSTNAME=`hostname -f`.chomp()
 
@@ -42,6 +73,10 @@ clist.each_line  do |line|
 end
 end
 
+def vmfsdatastores(server)
+`./suseviclient.sh  -s #{server} --dslist --vmfs`
+end
+
 get '/' do
   @serverlist = File.open('./serverlist.conf')
 	if session[:server].nil? 
@@ -50,38 +85,25 @@ get '/' do
   end
   
   vmlist
+  @datastores = vmfsdatastores(session[:server])
   @title = 'Virtual Machines List'
 	session[:vmarray] = @vmarray
   erb :home
 end
 
 post '/' do
-  if params[:vmname] == ''
-  flash[:error] = "<li>VM name should be specified</li>"
-  end
+ 
+  vm = VM.new
   
-  if not params[:vmname] =~ /[A-Za-z0-9]{20}/
-      flash[:error] = "#{flash[:error]}" "<li>VM name should be specified</li>"
-  end
-
-
-  if params[:memory] == ''
-  flash[:error] = "#{flash[:error]}" + "<li>Memory should be specified</li>"
-  end
-  
-  
+  flash[:error] = vm.validate(params) 
 
   redirect '/' if  (! flash[:error].nil? or flash[:error])
-  halt "WTF - #{params[:vmname]}"
-  if params[:creation_type] == "pxe"
-    `./suseviclient.sh -s #{session[:server]} -c -n "#{params[:vmname]}" -m "#{params[:memory]}" -d "#{params[:disksize]}G --novncpass"` 
-  elsif params[:creation_type] == "iso"
-    `./suseviclient.sh -s #{session[:server]} -c -n "#{params[:vmname]}" -m "#{params[:memory]}" -d "#{params[:disksize]}G" --iso "#{params[:pathtoimage]}" --novncpass` 
-  elsif params[:creation_type] == "studio"
-    `./suseviclient.sh -s #{session[:server]} -c -n "#{params[:vmname]}" --studio "#{params[:appliance_id]}" --novncpass` 
-  else
-    "I have no idea what's happening"
-  end
+
+  vm.name = params[:vmname]
+  vm.memory = params[:memory]
+  vm.disksize = params[:disksize]
+  vm.datastore = params[:datastore]
+  flash[:notice] = "<li>" + vm.create(session[:server], params[:creation_type], params[:pathtoiso], params[:pathtovmdk], params[:applianceid]) + "</li>"
 
   redirect '/'
 

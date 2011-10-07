@@ -41,7 +41,7 @@ header h2 {
 
 #add input {
   height: 20px;
-    width: 210px;
+    width: 300px;
       margin: 5px 0 0;
         border: 1px solid #ddd;
           background: white;
@@ -135,4 +135,9 @@ p {
 #error {
     color: #D63301;
     background-color: #FFCCBA;
+}
+
+#notice {
+  color: #4F8A10;
+  background-color: #DFF2BF;
 }

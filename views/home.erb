@@ -13,18 +13,28 @@
 <section id="add">
   <form action="/" method="post">
     <label>VM Label</label><p><input type="text" name="vmname" placeholder="Name for VM&hellip;"></p>
-    <label>Memory (MB)</label><p><input type="text" name="memory" placeholder="512"></p>
-    <label>Disk size (GB)</label><p><input type="text" name="disksize" placeholder="5"></p>
-    <label>Datastore</label><p><input type="text" name="datastore" placeholder="datastore1"></p>
+    <label>Memory (MB)</label><p><input type="text" name="memory" value="512"></p>
+    <label>Disk size (GB)</label><p><input type="text" name="disksize" value="5"></p>
+    <label>Datastore</label><p>
+    <select name="datastore" id="datastore">
+    <%
+    @datastores.each_line do |line| %>
+      <option value="<%=line.chomp()%>"> <%=line%>
+    <% end %>
+    </select></p>
     <label>Provision from</label><p>
     <input type="radio" name="creation_type" value="pxe" checked >PXE
     <input type="radio" name="creation_type" value="iso">ISO
+    <input type="radio" name="creation_type" value="vmdk">VMDK
     <input type="radio" name="creation_type" value="studio">SUSE Studio</p>
     <div id="iso" class="desc" style="display: none;">
-    <label>Path to ISO</label><p><input type="text" name="pathtoimage"></p>
+    <label>Path to ISO</label><p><input type="text" name="pathtoiso"></p>
+    </div>
+    <div id="vmdk" class="desc" style="display: none;">
+    <label>Path to VMDK</label><p><input type="text" name="pathtovmdk"></p>
     </div>
     <div id="studio" class="desc" style="display: none;">
-    <label>Appliance ID</label><p><input type="text" name="appliance_id"></p>
+    <label>Appliance ID</label><p><input type="text" name="applianceid"></p>
     </div>
     <p><input type="submit" value="Create VM!"></p>
   </form>
