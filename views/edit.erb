@@ -1,14 +1,12 @@
 <% if @vm %>
   <form action="/<%= @vm.vmid %>" method="post" id="edit">
     <input type="hidden" name="_method" value="put">
-    <input type="text"  name="name" placeholder="<%=h @vm.name %>" >
-    <input type="checkbox" name="complete" <%= "checked" if @vm.pwstate %>>
+    <input type="text"  name="name" value="<%=h @vm.name %>" >
     <input type="submit" value="Edit VM">
   </form>
-
-  <form action="/<%= @vm.vmid %>" method="post">
+  <form id="delete-form" action="/<%= @vm.vmid %>" method="post">
     <input type="hidden" name="_method" value="delete">
-    <input id="delete" type="submit" value="Delete VM" onclick="check()">
+    <a href="#" id="delete">Delete</a>
   </form>
 
 <% else %>

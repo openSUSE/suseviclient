@@ -33,11 +33,12 @@ $(document).ready(function() {
 	// ask if we are sure to delete
 	function check() {
   apprise("Are you sure?", {'verify': true}, function(r)
-          { if(r) { alert('true'); } else { alert('fasle'); } });}
+          { if(r) { $("#delete-form").submit(); }  });}
 
 	$("#delete").click(function() {
  		 check()
-	});      
+	});     
+	
 });
 
 $.ajaxSetup ({

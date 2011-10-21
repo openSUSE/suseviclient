@@ -49,6 +49,10 @@ class VM
       "I have no idea what's happening"
     end
   end
+
+  def delete(server)
+    '/suseviclient.sh -s "#{server}" --remove "#{self.vmid}" -y'
+  end
 end
 
 HOSTNAME=`hostname -f`.chomp()
@@ -137,13 +141,26 @@ put '/' do
 end
 
 get '/:id' do
+	redirect '/' if session[:vmarray].nil?
   @vm = session[:vmarray].find { |vm| vm.vmid == "#{params[:id]}" }
   @title = "Edit VM  ##{params[:id]}"
   erb :edit
 end
 
 put '/:id' do
+	redirect '/' if session[:vmarray].nil?
+  @vm = session[:vmarray].find { |vm| vm.vmid == "#{params[:id]}" }
+ 	if "#{params[:name].chomp()}" != "#{@vm.name}"
   `./suseviclient.sh -s #{session[:server]} -e "#{params[:id]}" -n "#{params[:name].chomp()}"`
+	end
   redirect '/'
 end
 
+delete '/:id' do
+  redirect '/' if session[:server].nil?
+  
+  `./suseviclient.sh -s \"#{session[:server]}\" --remove \"#{params[:id]}\" -y`
+  
+  redirect '/'
+
+end

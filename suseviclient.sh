@@ -648,7 +648,7 @@ snapshotcheck(){
 	if [ -n "$2" ];then
 		echo $output | grep -q "$2"
 		if [ $? -eq 0 ];then
-			echo "Snapshot $snapname created"; return 0
+			echo "Snapshot \"$snapname\" created"; return 0
 			else
 			return 1
 		fi

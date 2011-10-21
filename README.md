@@ -83,7 +83,8 @@ Where 64 is VM id.
 
 This will create blank VM with network attached. If PXE is enabled in your network it should be possible to perform a network boot after the VM is powered on.
 
-For full list of possible options see 
+For full list of possible options see
+ 
 		suseviclient.sh --help
 
 Installation
@@ -99,7 +100,7 @@ On the ESXi server side you have to enable ssh access, see:
 *http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1003677 for ESXi 4.0
 *http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1017910 for ESXi 4.1/5.0
 
-It's recommended to upload you ssh key to the server to not to enter password each time as passing management command through client.
+It's recommended to upload your ssh key to the server to not to enter password each time as passing management command through client.
 The root fs on ESXi is not permanent storage, so it's recommended to put the key on some connected datastore and automate the key copy on next reboot.
 
 Assuming that you have "datastore1" connected to ESXi server, do this
