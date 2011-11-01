@@ -456,8 +456,16 @@ else
 $ssh root@$esx_server "cd '/vmfs/volumes/$datastore/$name' && vmkfstools -c $disk -a lsilogic '$name.vmdk' "
 fi
 
+if [ $? -ne 0 ] ; then
+  echo "Virtual disk creation failure"; 
+	$ssh root@$esx_server "rm -rf '/vmfs/volumes/$datastore/$name/'"
+	cleanup 
+fi
+
 $ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$datastore/$name/$name.vmx'"
+if [ $? -eq 0 ] ; then
 echo "Virtual machine \"$name\" created"
+fi
 }
 
 
