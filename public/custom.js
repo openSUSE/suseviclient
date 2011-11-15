@@ -35,8 +35,9 @@ $(document).ready(function() {
   apprise("Are you sure?", {'verify': true}, function(r)
           { if(r) { $("#delete-form").submit(); }  });}
 
-	$("#delete").click(function() {
- 		 check()
+	$("#delete").click(function(event) {
+     event.preventDefault();
+ 		 check();
 	});     
 	
 });

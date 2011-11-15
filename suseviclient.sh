@@ -930,7 +930,7 @@ fi
 
 studio_before_filter ()
 {
-	if [[ ! $format =~ (oemiso|vmx) ]] ; then
+	if [[ ! $format =~ "(oemiso|vmx)" ]] ; then
 		echo "--format should be specified as oemiso or vmx"; exit;
 	fi
 
