@@ -343,6 +343,8 @@ VM creation:
         
 
 --clone <vmid> Clone the specified VM. Can be extended with -n <label> and --ds <datastore> options
+ 	  --toserver <esxi server> clone to another ESXi server.
+
 --export <vmid> <local_directory> Export VM from ESXi to local desktop to use with VMWare desktop products(Workstation/Player)   
 
 Generic management:
@@ -544,7 +546,7 @@ vnc_connect(){
 vnc_port(){
         tempfile=/tmp/dslist-`date +%s`-$RANDOM
 
-        $ssh root$esx_server "vim-cmd  vmsvc/getallvms| grep -o '\[.*\]' |egrep -o '[A-Za-z0-9-]+' |sort |uniq" > $tempfile
+        $ssh root@$esx_server "vim-cmd  vmsvc/getallvms| grep -o '\[.*\]' |egrep -o '[A-Za-z0-9-]+' |sort |uniq" > $tempfile
 
         while read line 
         do
@@ -605,11 +607,11 @@ power_on() {
                 vmid2datastore $1
                 vmid2relpath $1
                 biosonce_config="bios.forceSetupOnce = \"TRUE\""
-                $ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' && sed -i s/bios\.forceSetupOnce.*/bios\.forceSetupOnce=TRUE/g '/vmfs/volumes/$datastore/$relpath'" > /dev/null
-                $ssh root$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$relpath' && vim-cmd vmsvc/reload $1" > /dev/null
+                $ssh root@$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' && sed -i s/bios\.forceSetupOnce.*/bios\.forceSetupOnce=TRUE/g '/vmfs/volumes/$datastore/$relpath'" > /dev/null
+                $ssh root@$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$relpath' && vim-cmd vmsvc/reload $1" > /dev/null
         fi
 
-        output=$($ssh root@$esx_server "vim-cmd vmsvc/power.on $1 2>&1")
+        output=$($ssh root@$esx_server "vim-cmd vmsvc/power.on $1 & 2>&1")
         if [ $? -eq 0 ] ; then
                 echo "VM powered on"
         else
@@ -779,9 +781,19 @@ clone(){
         relpath2vmdkpath
 
         $ssh root@$esx_server "mkdir '/vmfs/volumes/$target_datastore/$name' && vmkfstools -d thin -i '/vmfs/volumes/$datastore/$vmdkpath' '/vmfs/volumes/$target_datastore/$name/$name.vmdk' && cp '/vmfs/volumes/$datastore/$relpath' '/vmfs/volumes/$target_datastore/$name/$name.vmx'"
+
+        if [ -n "$to_server" ]; then
+		ssh="$ssh -t" # we need a terminal allocation for scp
+                $ssh root@$esx_server "scp -r '/vmfs/volumes/$target_datastore/$name' 'root@$to_server:/vmfs/volumes/$target_datastore/'"
+		$ssh root@$esx_server "cd '/vmfs/volumes/$target_datastore/$name' && rm ./* && cd .. && rmdir './$name'" # yes, i'm afraid of scripting rm -rf in any forms
+                #here we are switching the server for the first time, no ssh master yet
+                ssh='ssh'
+                esx_server="$to_server"
+        fi
+
         vnc_port
         $ssh root@$esx_server "sed -i 's/displayname = \".*\"/displayname = \"$name\"/g;s/\".*\.vmdk\"/\"$name.vmdk\"/g;s/RemoteDisplay.vnc.port = \".*\"/RemoteDisplay.vnc.port = \"$vnc_port\"/g' '/vmfs/volumes/$target_datastore/$name/$name.vmx'"
-        $ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$target_datastore/$name/$name.vmx' && touch '/vmfs/volumes/$target_datastore/$name/clone_first_start' && echo '\"$oldname\" was successfuly cloned to \"$name\"'"
+        $ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$target_datastore/$name/$name.vmx' && echo '\"$oldname\" was successfuly cloned to \"$name\"'"
 }
 
 remove() {
@@ -794,7 +806,7 @@ remove() {
         fi
 
         if yesno "Do you really want to delete $name ?" ; then
-                output=$($ssh root$esx_server "vim-cmd vmsvc/destroy $1 2>&1")
+                output=$($ssh root@$esx_server "vim-cmd vmsvc/destroy $1 2>&1")
                 if [ $? -eq 0 ] ; then
                         echo "$name virtual machine removed"; return 0
                 else
@@ -829,7 +841,7 @@ addvnc() {
         vmid2name $1
         vmid2datastore $1
         vmid2relpath $1
-        vnc_check=`$ssh root$esx_server "egrep 'RemoteDisplay.vnc.enabled = \"?True\"?' '/vmfs/volumes/$datastore/$relpath'"`
+        vnc_check=`$ssh root@$esx_server "egrep 'RemoteDisplay.vnc.enabled = \"?True\"?' '/vmfs/volumes/$datastore/$relpath'"`
         if [ ! -z "$vnc_check" ]
         then echo "VNC is already enabled on this machine"
         else
@@ -842,7 +854,7 @@ addvnc() {
                 vnc_pass
                 vnc_conf
 
-                $ssh root$esx_server "echo -e \"$vnc_config\" >> 'vmfs/volumes/$datastore/$relpath' && vim-cmd vmsvc/reload $1"
+                $ssh root@$esx_server "echo -e \"$vnc_config\" >> 'vmfs/volumes/$datastore/$relpath' && vim-cmd vmsvc/reload $1"
         fi
 }
 
@@ -1045,7 +1057,7 @@ editvncpass()
         fi 
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast: showvncport:" "hclyn:s:m:d:e:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast: showvncport: toserver:" "hclyn:s:m:d:e:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -1099,6 +1111,7 @@ do
      --network) network_name="$2";shift;;
      --autoyast) autoyast="$2";shift;;
      --showvncport) showvncport_vmid="$2";shift;;
+     --toserver) to_server="$2";shift;;
      -h) usage; exit ;;
      --help) usage; exit ;;
      --)        shift;break;;
