@@ -611,7 +611,7 @@ power_on() {
                 $ssh root@$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$relpath' && vim-cmd vmsvc/reload $1" > /dev/null
         fi
 
-        output=$($ssh root@$esx_server "vim-cmd vmsvc/power.on $1 & 2>&1")
+        output=$($ssh root@$esx_server "vim-cmd vmsvc/power.on $1 2>&1")
         if [ $? -eq 0 ] ; then
                 echo "VM powered on"
         else
