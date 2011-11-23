@@ -534,7 +534,7 @@ vnc_connect(){
                         echo "VNC connection failed" 
                 fi
 
-                echo $output| egrep -q "(Unknown message type|Zero size rect|suseviclient-vncrestart)"
+                echo $output| egrep -q "(Unknown message type|Zero size rect|suseviclient-vncrestart|Rect too large)"
                 if [ $? -eq 1 ]; then
                         connect=""
                 fi
