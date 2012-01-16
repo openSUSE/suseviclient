@@ -277,6 +277,13 @@ vmx_convert ()
 
 #vmware 
 initial_info() {
+
+        if [ -t 1 ] ; then
+                COL_GREEN="\033[32m"
+                COL_RED="\033[31m"
+                COL_OFF="\033[0m"
+        fi
+
         echo -e "\nPowerstate\tVMID\tVM Label\t\t\t\tConfig file"
         echo -e "----------\t----\t--------\t\t\t\t-----------"
         allvms=`$ssh root@$esx_server "vim-cmd vmsvc/getallvms"`
@@ -298,9 +305,9 @@ initial_info() {
                 pwstate=$?
                 if [ $pwstate -eq 0 ]
                 then
-                        finallist=$finallist"\033[32mPowered on\033[0m       $line\n"
+                        finallist=$finallist"${COL_GREEN}Powered on${COL_OFF}	$line\n"
                 else
-                        finallist=$finallist"\033[31mPowered off\033[0m      $line\n"
+                        finallist=$finallist"${COL_RED}Powered off${COL_OFF}	$line\n"
                 fi 
 
         done < $tempfile
