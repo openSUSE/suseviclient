@@ -788,19 +788,27 @@ clone(){
         relpath2vmdkpath
 
         $ssh root@$esx_server "mkdir '/vmfs/volumes/$target_datastore/$name' && vmkfstools -d thin -i '/vmfs/volumes/$datastore/$vmdkpath' '/vmfs/volumes/$target_datastore/$name/$name.vmdk' && cp '/vmfs/volumes/$datastore/$relpath' '/vmfs/volumes/$target_datastore/$name/$name.vmx'"
-
+	
+	clone_failed="0"
         if [ -n "$to_server" ]; then
 		ssh="$ssh -t" # we need a terminal allocation for scp
                 $ssh root@$esx_server "scp -r '/vmfs/volumes/$target_datastore/$name' 'root@$to_server:/vmfs/volumes/$target_datastore/'"
+	        if [ $? -eq 0 ] ; then
+                	echo "$name virtual machine transferred to $to_server"
+               	else
+                	echo "Secure copy(scp) of VM to $to_server failed"; clone_failed="1"
+                fi
 		$ssh root@$esx_server "cd '/vmfs/volumes/$target_datastore/$name' && rm ./* && cd .. && rmdir './$name'" # yes, i'm afraid of scripting rm -rf in any forms
                 #here we are switching the server for the first time, no ssh master yet
                 ssh='ssh'
                 esx_server="$to_server"
         fi
-
+	
+	if [ "$clone_failed" -ne "1" ]; then
         vnc_port
         $ssh root@$esx_server "sed -i 's/displayname = \".*\"/displayname = \"$name\"/g;s/\".*\.vmdk\"/\"$name.vmdk\"/g;s/RemoteDisplay.vnc.port = \".*\"/RemoteDisplay.vnc.port = \"$vnc_port\"/g' '/vmfs/volumes/$target_datastore/$name/$name.vmx'"
         $ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$target_datastore/$name/$name.vmx' && echo '\"$oldname\" was successfuly cloned to \"$name\"'"
+	fi
 }
 
 remove() {
