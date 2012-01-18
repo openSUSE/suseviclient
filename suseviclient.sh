@@ -340,6 +340,8 @@ VM creation:
 --vmdk <path> to VMDK image in format of <datastore>/path/to/image.iso  
 --studio <appliance_id> Deploy appliance from SUSE Studio server, see studio options below
 
+VM modification:
+----------------
 -e <vmid> <param to change> Edit existing VM. Available parameters for editing:
           -n <label> Change label
           --iso <path> Connect another iso image
@@ -348,10 +350,13 @@ VM creation:
           --vncpass -i interactively change password with checks
           --novncpass remove password enabling connection without authentication
         
-
+Cloning:
+--------
 --clone <vmid> Clone the specified VM. Can be extended with -n <label> and --ds <datastore> options
  	  --toserver <esxi server> clone to another ESXi server.
 
+Exporting:
+----------
 --export <vmid> <local_directory> Export VM from ESXi to local desktop to use with VMWare desktop products(Workstation/Player)   
 
 Generic management:
