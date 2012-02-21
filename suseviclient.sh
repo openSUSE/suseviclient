@@ -320,7 +320,6 @@ initial_info() {
 
 usage() {
         echo  "
-
 Tool to create and control virtual machines on ESXi servers
 
 VM creation:
@@ -1146,13 +1145,13 @@ done
 [[ -n $esx_server && ! -z $list ]] && initial_info && cleanup
 
 # iso file check
-if [ ! -z "$iso" ];then	
+if [[ -n $esx_server && ! -z "$iso" ]];then	
         $ssh root@$esx_server "test -e '/vmfs/volumes/$iso'"
         [ $? -eq 1 ] && echo "ISO image does not exist on datastore" && cleanup
 fi
 
 # vmdk file check
-if [ -n $vmdk ]; then
+if [[ -n $esx_server &&  -n $vmdk ]]; then
         $ssh root@$esx_server "test -e '/vmfs/volumes/$vmdk'"
         [ $? -eq 1 ] && echo "VMDK image does not exist on datastore" && cleanup
 fi
