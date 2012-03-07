@@ -352,7 +352,7 @@ VM modification:
 Cloning:
 --------
 --clone <vmid> Clone the specified VM. Can be extended with -n <label> and --ds <datastore> options
- 	  --toserver <esxi server> clone to another ESXi server.
+ 	  --toserver <esxi server> clone to *another* ESXi server. Do NOT use this option when cloning within one server
 
 Exporting:
 ----------
