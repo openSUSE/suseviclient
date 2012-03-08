@@ -1,4 +1,5 @@
 require 'rubygems'
+gem 'rack', '~> 1.3.4'
 require 'sinatra'
 require 'rack-flash'
 
