@@ -622,15 +622,16 @@ power_on() {
                 $ssh root@$esx_server "grep bios\.forceSetupOnce '/vmfs/volumes/$datastore/$relpath' || echo \"$biosonce_config\" >> '/vmfs/volumes/$datastore/$relpath' && vim-cmd vmsvc/reload $1" > /dev/null
         fi
 
-        output=$($ssh root@$esx_server "vim-cmd vmsvc/power.on $1 2>&1")
+        output=$($ssh root@$esx_server "nohup vim-cmd vmsvc/power.on $1 2>&1 < /dev/null &")
         if [ $? -eq 0 ] ; then
                 echo "VM powered on"
         else
                 echo "$output" | sed -n 's/msg = "\(.*\)".*/\1/p'; return 1
         fi
-
-        message=$($ssh root@$esx_server "vim-cmd vmsvc/message $1| head -1 | grep -oE '[0-9]{1,}'")
-        if [[ $message != "" ]];then
+	
+	sleep 1
+        message=$($ssh root@$esx_server "vim-cmd vmsvc/message $1| head -1 | sed 's/Virtual machine message \(.*\):/\1/g'" )
+        if [[ $message != "No message." ]];then
                 $ssh root@$esx_server "vim-cmd vmsvc/message $1 $message 2"
         fi
 
