@@ -810,7 +810,7 @@ clone(){
 	
 	if [ "$clone_failed" != "1" ]; then
         vnc_port
-        $ssh root@$esx_server "sed -i 's/displayname = \".*\"/displayname = \"$name\"/g;s/\".*\.vmdk\"/\"$name.vmdk\"/g;s/RemoteDisplay.vnc.port = \".*\"/RemoteDisplay.vnc.port = \"$vnc_port\"/g' '/vmfs/volumes/$target_datastore/$name/$name.vmx'"
+        $ssh root@$esx_server "sed -i 's/displayname = \".*\"/displayname = \"$name\"/gI;s/\".*\.vmdk\"/\"$name.vmdk\"/g;s/RemoteDisplay.vnc.port = .*/RemoteDisplay.vnc.port = \"$vnc_port\"/gI' '/vmfs/volumes/$target_datastore/$name/$name.vmx'"
         $ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$target_datastore/$name/$name.vmx' && echo '\"$oldname\" was successfuly cloned to \"$name\"'"
 	fi
 }
