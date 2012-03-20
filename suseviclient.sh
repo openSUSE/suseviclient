@@ -375,6 +375,7 @@ Generic management:
 --snapshotlist <vmid> Get list of snapshots for current VM
 --snapshot <vmid> --snapname <snapshot label> Make snapshot of current VM status
 --snapshotremove <vmid> --snapname \"<snapshot name>\" Remove a snapshot with specified name
+--snapshotremove <vmid> --snapid <snapshot_id> Remove a snapshot with specified ID
 --snapshotremove <vmid> --all Remove all snapshots for specidied VM
 --revert <vmid> --snapname <snapshot label> Revert from snapshot
 --remove <vmid> Delete VM
@@ -699,8 +700,13 @@ snapshot() {
         fi
 }
 
-revert(){
+snapid2snapname(){
+	snaplist=$(snapshotlist $1)
+	echo "$snaplist"|grep -E -A1 "\-*$2\)"| sed -n 's/-*Snapshot Name\s*: \(.*\)/\1/p'
+}
 
+revert(){
+	
         snaplevel=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1 | grep '$2' | egrep -o '\-*'| wc -c"`
 
         if [ ! $snaplevel -eq 0 ]
@@ -716,7 +722,6 @@ revert(){
 }
 
 snapshotremove(){
-
         if [ ! -z $3 ]
         then
                 $ssh root@$esx_server "vim-cmd vmsvc/snapshot.removeall $1" > /dev/null
@@ -728,17 +733,26 @@ snapshotremove(){
                         fi
                         sleep 10s
                 done
-        else
-                snaplevel=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1 | grep '$2' | egrep -o '\-*'| wc -c"`
+        else	
+		snapname="$2"
+		if [ -n "$snapid" ];then
+			snapname=$(snapid2snapname $1 $snapid)
+		fi
+		
+		if [ -z "$snapname" ];then
+			echo "There is no snapshot with ID: $snapid"
+			cleanup
+		fi
+                snaplevel=$($ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1 | grep '$snapname' | egrep -o '\-*'| wc -c")
 
                 if [ ! $snaplevel -eq 0 ]
                 then
                         snaplevel=$(( $snaplevel/2-1)) 
                         $ssh root@$esx_server "vim-cmd vmsvc/snapshot.remove $1 1 $snaplevel" > /dev/null
                         while true;do
-                                snapshotcheck "$1" "$2"
+                                snapshotcheck "$1" "$snapname"
                                 if [[ $? -eq 1 || $? -eq 2 ]];then
-                                        echo "Snapshot \"$2\" removed"; break
+                                        echo "Snapshot \"$snapname\" removed"; break
                                 fi
                                 sleep 10s
                         done
@@ -1093,7 +1107,7 @@ editvncpass()
         fi 
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast: showvncport: toserver:" "hclyn:s:m:d:e:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: snapid: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast: showvncport: toserver:" "hclyn:s:m:d:e:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -1126,6 +1140,7 @@ do
      --dsbrowse) dsbrowse="$2";shift;;
      --snapshotlist) snapshotlist_vmid="$2";shift;;
      --snapname) snapname="$2";shift;;
+     --snapid) snapid="$2";shift;;
      --snapshotremove) snapshotremove_vmid="$2";shift;;
      --all) all="1";snapname="anything";shift;;
      --apiuser) apiuser="$2";shift;;
@@ -1273,8 +1288,10 @@ then  snapshotlist $snapshotlist_vmid; cleanup
 fi
 
 #snapshotremove execution
-if [[  -n $esx_server && ! -z $snapshotremove_vmid && ! -z $snapname ]] 
-then  snapshotremove $snapshotremove_vmid "$snapname" $all; cleanup
+if [[  -n $esx_server && ! -z $snapshotremove_vmid ]];then  
+   if [[ -n $snapname || -n $snapid ]];then
+	snapshotremove $snapshotremove_vmid "$snapname" $all; cleanup
+   fi
 fi
 
 if [[  -n $esx_server && ! -z $vnc ]] 
