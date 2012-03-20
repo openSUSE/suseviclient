@@ -756,7 +756,23 @@ snapshotlist(){
         if [ $? -eq 1 ];then
                 echo "No snaphots created for this VM"
         else
-                echo "$output"
+        	tempfile=/tmp/snapshotlist-`date +%s`-$RANDOM
+
+        	echo "$output" > $tempfile
+
+		snapcounter=1
+
+        	while read line 
+        	do
+			echo $line | grep -q '|-'
+			if [ $? -eq 0 ];then
+				line=$(echo $line | sed "s/|-/$snapcounter)/")
+				((snapcounter++))
+			fi
+			echo $line
+        	done < $tempfile
+
+        	rm -f $tempfile
         fi
 }
 
