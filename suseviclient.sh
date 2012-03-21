@@ -682,7 +682,7 @@ snapshotcheck(){
         if [ -n "$2" ];then
                 echo $output | grep -q "$2"
                 if [ $? -eq 0 ];then
-                        echo "Snapshot \"$snapname\" created"; return 0
+                        return 0
                 else
                         return 1
                 fi
@@ -700,6 +700,7 @@ snapshot() {
                         snapshotcheck "$1" "$2" && break
                         sleep 10s
                 done
+		echo "Snapshot \"$snapname\" created"; 
         else
                 echo "Snapshotname \"$2\" already exists" 
         fi
@@ -1314,7 +1315,7 @@ fi
 
 #snapshot
 if [[  -n $esx_server && ! -z $snap_vmid ]]
-then snapname=${snapname:-$(echo "snapshot"$(date +"%d-%m-%Y %T"))}; snapshot $snap_vmid "$snapname"; cleanup
+then snapname=${snapname:-$(echo "snapshot "$(date +"%d-%m-%Y %T"))}; snapshot $snap_vmid "$snapname"; cleanup
 fi
 #snapshot revert
 if [[  -n $esx_server && ! -z $revert_vmid ]];then 
