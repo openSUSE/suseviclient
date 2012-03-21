@@ -778,8 +778,18 @@ snapshotremove(){
 
 }
 
-snapshotlist(){
+get_current_snapshot(){
+	vmid2name $1
+	vmid2datastore $1
+	vmid2relpath $1
+	vmsdpath=$(echo $relpath | sed 's/\.vmx/\.vmsd/')
+	current_snapshot_uid=$($ssh root@$esx_server "cat '/vmfs/volumes/$datastore/$vmsdpath'| sed -n 's/snapshot.current = \"\(.*\)\"/\1/p'")
+	current_snapshot_name=$($ssh root@$esx_server "cat '/vmfs/volumes/$datastore/$vmsdpath'| grep -A3 -E 'snapshot.+\.uid = \"$current_snapshot_uid\"' |sed -n 's/snapshot.*\.displayName = \"\(.*\)\"/\1/p'")
+	echo $current_snapshot_name
+}
 
+snapshotlist(){
+	get_current_snapshot $1
         output=$($ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1")
         echo "$output" | grep -q "|-ROOT"
         if [ $? -eq 1 ];then
@@ -795,9 +805,15 @@ snapshotlist(){
         	do
 			echo $line | grep -q '|-'
 			if [ $? -eq 0 ];then
+
 				line=$(echo $line | sed "s/|-/$snapcounter)/")
 				((snapcounter++))
 			fi
+			listed_snapshot_name=$(echo "$line" | sed -n 's/-*Snapshot Name\s*: \(.*\)/\1/p')
+			if [ "$listed_snapshot_name" = "$current_snapshot_name" ];then
+				line=$line"  <== You are here"
+			fi
+
 			echo $line
         	done < $tempfile
 
