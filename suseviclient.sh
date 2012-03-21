@@ -789,12 +789,13 @@ get_current_snapshot(){
 }
 
 snapshotlist(){
-	get_current_snapshot $1
         output=$($ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1")
         echo "$output" | grep -q "|-ROOT"
         if [ $? -eq 1 ];then
                 echo "No snaphots created for this VM"
         else
+			
+		get_current_snapshot $1
         	tempfile=/tmp/snapshotlist-`date +%s`-$RANDOM
 
         	echo "$output" > $tempfile
