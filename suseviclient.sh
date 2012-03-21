@@ -372,13 +372,18 @@ Generic management:
 --vnc <vmid> Connect to VM via VNC
 --showvncport <vmid> Print VNC port assigned to specified VM 
 --addvnc <vmid> Add VNC support to an existing VM ( guest need to be restarted to take effect)
+--remove <vmid> Delete VM
+
+Snapshot management:
+--------------------
 --snapshotlist <vmid> Get list of snapshots for current VM
 --snapshot <vmid> --snapname <snapshot label> Make snapshot of current VM status
---snapshotremove <vmid> --snapname \"<snapshot name>\" Remove a snapshot with specified name
+		  If --snapname is not specified the label will default to \"snapshot\$timestamp\" 
+--snapshotremove <vmid> --snapname <snapshot label> Remove a snapshot with specified name
 --snapshotremove <vmid> --snapid <snapshot_id> Remove a snapshot with specified ID
 --snapshotremove <vmid> --all Remove all snapshots for specidied VM
---revert <vmid> --snapname <snapshot label> Revert from snapshot
---remove <vmid> Delete VM
+--revert <vmid> --snapname <snapshot label> Revert to snapshot by name
+--revert <vmid> --snapid <snapshot id> Revert to snapshot by ID
 
 
 SUSE Studio specific options:
@@ -706,16 +711,25 @@ snapid2snapname(){
 }
 
 revert(){
-	
-        snaplevel=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1 | grep '$2' | egrep -o '\-*'| wc -c"`
+	snapname="$2"
+	if [ -n "$snapid" ];then
+		snapname=$(snapid2snapname $1 $snapid)
+	fi
+		
+	if [ -z "$snapname" ];then
+		echo "There is no snapshot with ID: $snapid"
+		cleanup
+	fi
+
+        snaplevel=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1 | grep '$snapname' | egrep -o '\-*'| wc -c"`
 
         if [ ! $snaplevel -eq 0 ]
         then
                 snaplevel=$(( $snaplevel/2-1)) 
                 $ssh root@$esx_server "vim-cmd vmsvc/snapshot.revert $1 suppressPowerOff $snaplevel" > /dev/null
-                echo "Reverted to snapshot: $2"
+                echo "Reverted to snapshot: $snapname"
         else
-                echo "No snapshot with specified name: $2"
+                echo "No snapshot with specified name: $snapname"
         fi
 
 
@@ -1302,9 +1316,11 @@ fi
 if [[  -n $esx_server && ! -z $snap_vmid ]]
 then snapname=${snapname:-$(echo "snapshot"$(date +"%d-%m-%Y %T"))}; snapshot $snap_vmid "$snapname"; cleanup
 fi
-
-if [[  -n $esx_server && ! -z $revert_vmid  && ! -z $snapname ]] 
-then revert $revert_vmid "$snapname"; cleanup
+#snapshot revert
+if [[  -n $esx_server && ! -z $revert_vmid ]];then 
+   if [[ -n $snapname || -n $snapid ]];then
+	revert $revert_vmid "$snapname"; cleanup
+   fi
 fi
 
 if [[  -n $esx_server && ! -z $remove_vmid ]]
