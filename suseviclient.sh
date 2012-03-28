@@ -690,25 +690,30 @@ snapshotcheck(){
 }
 
 snapshot() {
+	charnumber=$(echo "$2" | wc -c)
+	if [ $charnumber -gt 81 ];then
+           	snapname=$( echo "$2" |  cut -c1-80)
+		echo "Snapshot name is too long, it was truncated to \"$snapname\""
+	fi
         uniq=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1|grep 'Snapshot Name'"`
-        echo $uniq |grep -o ": $2" > /dev/null
+        echo $uniq |grep -o ": $snapname" > /dev/null
         if [ $? -eq 1 ]
         then 
                 echo "Creating snapshot \"$snapname\"..."
-                $ssh root@$esx_server "vim-cmd vmsvc/snapshot.create $1 \"$2\" \"  \" 1" > /dev/null
+                $ssh root@$esx_server "vim-cmd vmsvc/snapshot.create $1 \"$snapname\" \"  \" 1" > /dev/null
                 while true;do
-                        snapshotcheck "$1" "$2" && break
+                        snapshotcheck "$1" "$snapname" && break
                         sleep 10s
                 done
 		echo "Snapshot \"$snapname\" created"; 
         else
-                echo "Snapshotname \"$2\" already exists" 
+                echo "Snapshotname \"$snapname\" already exists" 
         fi
 }
 
 snapid2snapname(){
 	snaplist=$(snapshotlist $1)
-	echo "$snaplist"|grep -E -A1 "\-*$2\)"| sed -n 's/-*Snapshot Name\s*: \(.*\)/\1/p'
+	echo "$snaplist"|grep -E -A1 "\-*$2\)"| sed -n 's/ <== You are here//;s/-*Snapshot Name\s*: \(.*\)/\1/p'
 }
 
 revert(){
