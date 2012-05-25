@@ -331,6 +331,7 @@ VM creation:
 -d <size> of hard disk (M/G). Can be omitted. Default is 5 GB
 --ds <datastore name> where VM will be created (optional)
 --network <name> connect VM network adapter to specified virtual network(optional)
+--mac <address> custom mac address for ethernet device. (must be started with 00:50:56)
 --vncpass <password> set password to access vm console via vnc. Use this if you need non-interactive VM creation.
 --novncpass omits setting vnc password so no authorization will be required
 
@@ -469,6 +470,13 @@ ethernet0.present= \"true\"
 ethernet0.startConnected = \"true\"
 ethernet0.virtualDev = \"e1000\"
 ethernet0.networkName = \"$network_name\""
+	#extend network settings if custom mac address is specified
+	if [ -n "$mac" ];then
+		network_config="
+$network_config
+ethernet0.addressType=\"static\"
+ethernet0.address = \"$mac\""
+	fi
 
         $ssh root@$esx_server "[[ ! -d  \"/vmfs/volumes/$datastore/$name\" ]] &&  mkdir \"/vmfs/volumes/$datastore/$name\""
 
@@ -1144,7 +1152,7 @@ editvncpass()
         fi 
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: snapid: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: autoyast: showvncport: toserver:" "hclyn:s:m:d:e:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: snapid: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: mac: autoyast: showvncport: toserver:" "hclyn:s:m:d:e:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -1197,6 +1205,7 @@ do
      --vswitchadd) vswitch_add_name="$2";shift;;
      --vswitchremove) vswitch_remove_name="$2";shift;;
      --network) network_name="$2";shift;;
+     --mac) mac="$2";shift;;
      --autoyast) autoyast="$2";shift;;
      --showvncport) showvncport_vmid="$2";shift;;
      --toserver) to_server="$2";shift;;
