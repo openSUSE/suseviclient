@@ -234,6 +234,11 @@ imageupload() {
         if [ "$format" = "oemiso" ] ; then
 
                 $ssh root@$esx_server "wget $imagelink -O  /vmfs/volumes/$datastore/${name// /\ }/studio.iso"
+		if [ $? -ne 0 ]; then
+		## Workaround of Studio Bug 716657, seems that it will be fixed in the next millenium
+	 		imagelink="http://$studioserver$imagelink"
+			$ssh root@$esx_server "wget $imagelink -O  /vmfs/volumes/$datastore/${name// /\ }/studio.iso"	
+		fi
                 if [ $? -eq 0 ]; then
                         echo "Image uploaded"
                 else
@@ -244,6 +249,11 @@ imageupload() {
                 img_filename=$(basename $imagelink)
                 tarname=$(echo $img_filename| sed -n 's/\(.*\)\.vmx.tar.gz/\1.vmx.tar/p')
                 $ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && wget '$imagelink'"
+		if [ $? -ne 0 ]; then
+		## Workaround of Studio Bug 716657, seems that it will be fixed in the next millenium
+	 		imagelink="http://$studioserver$imagelink"
+                	$ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && wget '$imagelink'"
+		fi
                 if [ $? -eq 0 ]; then
                         echo "Image uploaded"
                 else
