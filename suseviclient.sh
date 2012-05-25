@@ -347,7 +347,7 @@ VM creation:
 
 
 --iso <path> to ISO image in format of <datastore>/path/to/image.iso
---vmdk <path> to VMDK image in format of <datastore>/path/to/image.iso  
+--vmdk <path> to VMDK image in format of <datastore>/path/to/image.vmdk 
 --studio <appliance_id> Deploy appliance from SUSE Studio server, see studio options below
 
 VM modification:
