@@ -423,7 +423,7 @@ You can specify frequently used options in configuration file of ~/.suseviclient
 Example of such a config file with comments:
 
 #Default ESXi server to work with
-esx_server=\"thessalonike.suse.de\"
+esx_server=\"thessalonike.qam.suse.de\"
 
 #SUSE Studio API user
 apiuser=\"studiouser\"
