@@ -383,7 +383,7 @@ Generic management:
 --vnc <vmid> Connect to VM via VNC
 --showvncport <vmid> Print VNC port assigned to specified VM 
 --addvnc <vmid> Add VNC support to an existing VM ( guest need to be restarted to take effect)
---remove <vmid> Delete VM
+--remove or --delete <vmid> Delete VM
 
 Snapshot management:
 --------------------
@@ -1162,7 +1162,7 @@ editvncpass()
         fi 
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: snapid: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: mac: autoyast: showvncport: toserver:" "hclyn:s:m:d:e:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: delete: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: snapid: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: mac: autoyast: showvncport: toserver:" "hclyn:s:m:d:e:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -1188,6 +1188,7 @@ do
      --snapshot) snap_vmid=$2;shift;;
      --revert) revert_vmid=$2;shift;;
      --remove) remove_vmid=$2;shift;;
+     --delete) remove_vmid=$2;shift;;
      --vnc) vnc="$2";shift;;
      --addvnc) addvnc_vmid="$2";shift;;
      --dslist) dslist="1";;
