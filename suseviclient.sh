@@ -344,7 +344,7 @@ VM creation:
 --mac <address> custom mac address for ethernet device. (must be started with 00:50:56)
 --vncpass <password> set password to access vm console via vnc. Use this if you need non-interactive VM creation.
 --novncpass omits setting vnc password so no authorization will be required
-
+--cores <number> Number of CPU cores (1-4)
 
 --iso <path> to ISO image in format of <datastore>/path/to/image.iso
 --vmdk <path> to VMDK image in format of <datastore>/path/to/image.vmdk 
@@ -488,9 +488,14 @@ ethernet0.addressType=\"static\"
 ethernet0.address = \"$mac\""
 	fi
 
+  if [ -n "$cores" ];then
+    cores_config="
+numvcpus = \"$cores\"
+cpuid.coresPerSocket = \"$cores\""
+  fi
         $ssh root@$esx_server "[[ ! -d  \"/vmfs/volumes/$datastore/$name\" ]] &&  mkdir \"/vmfs/volumes/$datastore/$name\""
 
-        echo "$config$iso_config$network_config$vnc_config" | $ssh root@$esx_server "cat > '/vmfs/volumes/$datastore/$name/$name.vmx'"
+        echo "$config$iso_config$network_config$vnc_config$cores_config" | $ssh root@$esx_server "cat > '/vmfs/volumes/$datastore/$name/$name.vmx'"
 
         #Create an empty scsci disk of if vmdk specified copy it to the vm's dir
         if [ -n "$vmdk" ];then
@@ -1048,6 +1053,9 @@ before_filter() {
                 echo "Virtual network \"$network_name\" does not exist"; cleanup
         fi
 
+        if ! [[ $cores -ge 1 && $cores -le 4 ]]; then
+          echo "Cores number can be assigned to values only of 1-4"; exit;
+        fi
 }
 
 
@@ -1162,7 +1170,7 @@ editvncpass()
         fi 
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: delete: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: snapid: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: mac: autoyast: showvncport: toserver:" "hclyn:s:m:d:e:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: delete: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: snapid: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: mac: autoyast: showvncport: toserver: cores:" "hclyn:s:m:d:e:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -1220,6 +1228,7 @@ do
      --autoyast) autoyast="$2";shift;;
      --showvncport) showvncport_vmid="$2";shift;;
      --toserver) to_server="$2";shift;;
+     --cores) cores="$2";shift;;
      -h) usage; exit ;;
      --help) usage; exit ;;
      --)        shift;break;;
