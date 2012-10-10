@@ -1262,6 +1262,7 @@ ram=${ram:-512}
 disk=${disk:-5G}
 network_name=${network_name:-"VM Network"}
 no_vnc_password=${no_vnc_password:-0} #Usually we want VNC password to be set
+cores=${cores:-1}
 
 if [ ! -z $studio ] ; then
         checkimage "$apiuser" "$apikey" "$studio"
