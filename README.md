@@ -24,6 +24,8 @@ Features
 
 * Exporting to VMware Workstation/Player
 
+* Nested virtualization enablement
+
 How does it work?
 -----------------
 
@@ -83,6 +85,12 @@ Where 64 is VM id.
 
 This will create blank VM with network attached. If PXE is enabled in your network it should be possible to perform a network boot after the VM is powered on.
 
+5) Create VM with nested virtualization capabilities, a.k.a. to test another hypervisor within ESXi( KVM works pretty good there!)
+   
+    suseviclient.sh -c -n "Nested VM Example" --vmdk datastore1/path/to/image.vmdk --nested
+    
+--vmdk provided only for illustration: --nested will work with any provisioning type
+
 For full list of possible options see
  
 		suseviclient.sh --help
@@ -116,7 +124,7 @@ All .rb files are additional modules( like web interface) and will be described 
 Web Interface
 -------------
 
-Web fronted is available with webfrontend.rb currently under initial development state but already fucntional.
+Web fronted is available with webfrontend.rb currently under initial development state but already functional.
 
 It is built with 
 
