@@ -345,6 +345,7 @@ VM creation:
 --vncpass <password> set password to access vm console via vnc. Use this if you need non-interactive VM creation.
 --novncpass omits setting vnc password so no authorization will be required
 --cores <number> Number of CPU cores (1-4)
+--nested Enable nested virtualization(only for ESXi 5.x)
 
 --iso <path> to ISO image in format of <datastore>/path/to/image.iso
 --vmdk <path> to VMDK image in format of <datastore>/path/to/image.vmdk 
@@ -459,7 +460,6 @@ register_vm () {
 
        esxiversion
 
-
        if [[ $esxiversion =~ 4\.?\.? ]]; then
          virtualHWversion="7"
        elif [[ $esxiversion =~ 5\.0\.? ]]; then
@@ -470,10 +470,14 @@ register_vm () {
          echo "Can't detect ESXi version"; cleanup
        fi
 
+       if [ -n "$nested" ]; then
+         enable_nested_virtualization
+       fi
+
         config="
 config.version = \"8\"
 virtualHW.version= \"$virtualHWversion\"
-guestOS = \"sles11\"
+guestOS = \"$guestOS\"
 memsize = \"$ram\"
 displayname = \"$name\"
 scsi0.present = \"TRUE\"
@@ -1186,7 +1190,24 @@ editvncpass()
         fi 
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: delete: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: snapid: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: mac: autoyast: showvncport: toserver: cores:" "hclyn:s:m:d:e:" "$@"` || usage 
+enable_nested_virtualization() {
+  if [[ $esxiversion =~ 5\.?\.?  ]]; then
+    ssh root@$esx_server "grep -q 'vhv.allow' '/etc/vmware/config'"
+    if [ $? -eq 0 ]; then
+      $ssh root@$esx_server "sed -i 's/vhv.allow = \".*\"/vhv.allow = \"TRUE\"/' '/etc/vmware/config'"
+    else
+      echo 'vhv.allow = "TRUE"' | $ssh root@$esx_server "cat >> '/etc/vmware/config'"
+    fi
+  guestOS="vmkernel5"
+  else
+    echo "Nested virtualization is available only since ESXi 5.0."; cleanup
+  fi
+  if [ $? -eq 0 ];then
+    echo "Nested virtualization enabled."
+  fi
+}
+
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: delete: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: snapid: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: mac: autoyast: showvncport: toserver: cores: nested" "hclyn:s:m:d:e:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -1245,6 +1266,7 @@ do
      --showvncport) showvncport_vmid="$2";shift;;
      --toserver) to_server="$2";shift;;
      --cores) cores="$2";shift;;
+     --nested) nested="1";;
      -h) usage; exit ;;
      --help) usage; exit ;;
      --)        shift;break;;
@@ -1279,6 +1301,7 @@ disk=${disk:-5G}
 network_name=${network_name:-"VM Network"}
 no_vnc_password=${no_vnc_password:-0} #Usually we want VNC password to be set
 cores=${cores:-1}
+guestOS=${guestOS:-sles11}
 
 if [ ! -z $studio ] ; then
         checkimage "$apiuser" "$apikey" "$studio"
