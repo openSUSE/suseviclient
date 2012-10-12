@@ -438,6 +438,9 @@ All specified directives in config file are easily overridable by the related co
 "
 }
 
+esxiversion() {
+  esxiversion=$($ssh root@$esx_server "vim-cmd hostsvc/hostsummary" |sed -n 's/version = "\(.*\)".*/\1/p')
+}
 
 # Create and register VM
 
@@ -454,9 +457,22 @@ register_vm () {
                 fi
         fi
 
+       esxiversion
+
+
+       if [[ $esxiversion =~ 4\.?\.? ]]; then
+         virtualHWversion="7"
+       elif [[ $esxiversion =~ 5\.0\.? ]]; then
+         virtualHWversion="8"
+       elif [[ $esxiversion =~ 5\.1\.? ]]; then
+         virtualHWversion="9"
+       else
+         echo "Can't detect ESXi version"; cleanup
+       fi
+
         config="
 config.version = \"8\"
-virtualHW.version= \"7\"
+virtualHW.version= \"$virtualHWversion\"
 guestOS = \"sles11\"
 memsize = \"$ram\"
 displayname = \"$name\"
