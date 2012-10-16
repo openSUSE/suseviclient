@@ -222,7 +222,7 @@ checkimage() {
         rm $tempfile
         unset tempfile
         if [[ -z $imagelink ]]; then 
-                echo "Image is not ready"; cleanup
+                echo "Image is not ready"; cleanup 1
         else echo "Image is ready, we can upload it to server..."
         fi
 }
