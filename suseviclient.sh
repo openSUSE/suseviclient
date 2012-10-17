@@ -280,7 +280,7 @@ vmx_convert ()
         vnc_port
         vnc_conf
         pathtoconfig="/vmfs/volumes/$datastore/$name/$name.vmx"
-        $ssh root@$esx_server "sed -i 's/virtualHW.version = \"4\"/virtualHW.version = \"7\"/g; s/ide0:0.*//g; s/$realfilename/$name/g' '$pathtoconfig'" 
+        $ssh root@$esx_server "sed -i 's/virtualHW.version = \"4\"/virtualHW.version = \"$virtualHWversion\"/g; s/ide0:0.*//g; s/$realfilename/$name/g; s/guestOS = \".*\"/guestOS = \"$guestOS\"/g' '$pathtoconfig'" 
         echo -e "$vnc_config\nethernet0.networkName = \"VM Network\"" | $ssh root@$esx_server "cat >> '$pathtoconfig'"
 
 }	# ----------  end of function vmx_convert  ----------
@@ -446,18 +446,7 @@ esxiversion() {
 # Create and register VM
 
 register_vm () {
-        if [[ ! -z $studio ]]; then
-                if [[ ! -z $apiuser && ! -z $apikey ]];then
-
-                        [ $format = "oemiso" ] && $ssh root@$esx_server "mkdir \"/vmfs/volumes/$datastore/$name\"" && iso="$datastore/$name/studio.iso"
-
-                        imageupload "$apiuser" "$apikey" ;
-                        [ $format = "vmx" ] && vmdk_convert "$name" && vmx_convert && $ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$datastore/$name/$name.vmx'" && echo "Virtual machine \"$name\" created" && cleanup
-                else
-                        echo "Please provide studio apiuser and apikey"; exit
-                fi
-        fi
-
+      
        esxiversion
 
        if [[ $esxiversion =~ 4\.?\.? ]]; then
@@ -473,6 +462,18 @@ register_vm () {
        if [ -n "$nested" ]; then
          enable_nested_virtualization
        fi
+
+       if [[ ! -z $studio ]]; then
+                if [[ ! -z $apiuser && ! -z $apikey ]];then
+
+                        [ $format = "oemiso" ] && $ssh root@$esx_server "mkdir \"/vmfs/volumes/$datastore/$name\"" && iso="$datastore/$name/studio.iso"
+
+                        imageupload "$apiuser" "$apikey" ;
+                        [ $format = "vmx" ] && vmdk_convert "$name" && vmx_convert && $ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$datastore/$name/$name.vmx'" && echo "Virtual machine \"$name\" created" && cleanup
+                else
+                        echo "Please provide studio apiuser and apikey"; exit
+                fi
+        fi
 
         config="
 config.version = \"8\"
