@@ -469,7 +469,14 @@ register_vm () {
                         [ $format = "oemiso" ] && $ssh root@$esx_server "mkdir \"/vmfs/volumes/$datastore/$name\"" && iso="$datastore/$name/studio.iso"
 
                         imageupload "$apiuser" "$apikey" ;
-                        [ $format = "vmx" ] && vmdk_convert "$name" && vmx_convert && $ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$datastore/$name/$name.vmx'" && echo "Virtual machine \"$name\" created" && cleanup
+                        [ $format = "vmx" ] && vmdk_convert "$name" && vmx_convert && $ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$datastore/$name/$name.vmx'"
+                        if [ $? -eq 0 ]; then 
+                          echo "Virtual machine \"$name\" created"
+                          cleanup
+                        else
+                          echo "Deployment failed"
+                          cleanup 1
+                        fi
                 else
                         echo "Please provide studio apiuser and apikey"; exit
                 fi
@@ -528,12 +535,13 @@ cpuid.coresPerSocket = \"$cores\""
         if [ $? -ne 0 ] ; then
                 echo "Virtual disk creation failure"; 
                 $ssh root@$esx_server "rm -rf '/vmfs/volumes/$datastore/$name/'"
-                cleanup 
+                cleanup 1 
         fi
 
         $ssh root@$esx_server "vim-cmd solo/registervm '/vmfs/volumes/$datastore/$name/$name.vmx'"
         if [ $? -eq 0 ] ; then
                 echo "Virtual machine \"$name\" created"
+                cleanup
         fi
 }
 
