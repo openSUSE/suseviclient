@@ -732,7 +732,9 @@ snapshotcheck(){
         fi
 
         if [ -n "$2" ];then
-                echo $output | grep -q "$2"
+                #for some reason ESXi converts '/' to '%2' in snapshot names, so we need to conver the characters before comparison
+                name_to_search=$(echo $2|sed 's/\//\%2f/g')
+                echo $output | grep -q "$name_to_search"
                 if [ $? -eq 0 ];then
                         return 0
                 else
