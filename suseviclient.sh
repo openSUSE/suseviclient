@@ -77,7 +77,7 @@ rdom () { local IFS=\> ; read -d \< E C ;}
 
 appliances() {
         tempfile=/tmp/applist-`date +%s`-$RANDOM
-        curl -s -u "$1":"$2" "http://$studioserver/api/v1/user/appliances" > $tempfile
+        curl -s -u "$1":"$2" "http://$studioserver/api/v2/user/appliances" > $tempfile
         if [[ $? != 0 ]];then echo "Can't connect to specified studio server";rm -f $tempfile; exit; fi
         while rdom; do
                 if [[ $E = id ]]; then
@@ -136,7 +136,7 @@ appliances() {
 buildimage() {
         studio_before_filter
         tempfile=/tmp/buildimage-`date +%s`-$RANDOM
-        curl -s -u "$1":"$2" -XPOST "http://$studioserver/api/v1/user/running_builds?appliance_id=$3&force=1&image_type=$format" > $tempfile
+        curl -s -u "$1":"$2" -XPOST "http://$studioserver/api/v2/user/running_builds?appliance_id=$3&force=1&image_type=$format" > $tempfile
         if [[ $? != 0 ]];then echo "Can't connect to specified studio server";rm -f $tempfile; exit; fi
         while rdom; do
                 if [[ $E = id ]]; then
@@ -157,7 +157,7 @@ buildimage() {
 buildstatus() {
 
         tempfile=/tmp/buildimage-`date +%s`-$RANDOM
-        curl -s -u "$1":"$2" "http://$studioserver/api/v1/user/running_builds?appliance_id=$3" > $tempfile
+        curl -s -u "$1":"$2" "http://$studioserver/api/v2/user/running_builds?appliance_id=$3" > $tempfile
         if [[ $? != 0 ]];then echo "Can't connect to specified studio server";rm -f $tempfile; exit; fi
         while rdom; do
                 if [[ $E = id ]]; then
@@ -189,7 +189,7 @@ buildstatus() {
 
 checkimage() {
         tempfile=/tmp/checkimage-`date +%s`-$RANDOM	
-        curl -s -u "$1":"$2" "http://$studioserver/api/v1/user/appliances/$3" > $tempfile
+        curl -s -u "$1":"$2" "http://$studioserver/api/v2/user/appliances/$3" > $tempfile
         while rdom; do
                 if [[ $E = name && ! $nonameupdate -eq 1 ]];then
                         appliance_name="$C"
