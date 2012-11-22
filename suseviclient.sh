@@ -248,7 +248,15 @@ imageupload() {
         elif [ "$format" = "vmx" ] ; then
                 img_filename=$(basename $imagelink)
                 tarname=$(echo $img_filename| sed -n 's/\(.*\)\.vmx.tar.gz/\1.vmx.tar/p')
-                $ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && wget '$imagelink'"
+                if [ -n "$deploy_through_client" ]; then
+                  echo "Downloading and gunzipping image to local machine..."
+                  curl "$imagelink" | zcat > "/tmp/$tarname"
+                  echo "Copying tar to ESXi server..."
+                  $scp "/tmp/$tarname" root@$esx_server:"/vmfs/volumes/$datastore/$tarname"
+                  rm -f "/tmp/$tarname"
+                else
+                  $ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && wget '$imagelink'"
+                fi
 		if [ $? -ne 0 ]; then
 		## Workaround of Studio Bug 716657, seems that it will be fixed in the next millenium
 	 		imagelink="http://$studioserver$imagelink"
@@ -259,7 +267,7 @@ imageupload() {
                 else
                         echo "Image upload failure :("; cleanup
                 fi
-                $ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && echo  \"Unpacking image, please wait...\" && gunzip '$img_filename'"
+                $ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && echo  \"Unpacking image, please wait...\" && test -f '$img_filename' && gunzip '$img_filename'"
                 realname=$($ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && tar -tf $tarname | sed -n 's/\///g;1p'")
                 realfilename=$($ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && tar -tf $tarname |sed -n 's/.*\/\(.*\)\.vmdk/\1/p'")
                 $ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' &&  tar -xf $tarname && rm '$tarname' && mv '$realname' '$name' && chown root:root -R './$name' && cd './$name' && mv '$realfilename'.vmx '$name.vmx' && mv '$realfilename'.vmdk '$name.vmdk'" && echo "Image uploaded & unpacked"		
@@ -350,6 +358,7 @@ VM creation:
 --iso <path> to ISO image in format of <datastore>/path/to/image.iso
 --vmdk <path> to VMDK image in format of <datastore>/path/to/image.vmdk 
 --studio <appliance_id> Deploy appliance from SUSE Studio server, see studio options below
+--dtc deploy through client: deploy studio image through your machine, use it if you observe gunzip errors on deployment attempt
 
 VM modification:
 ----------------
@@ -1218,7 +1227,7 @@ enable_nested_virtualization() {
   fi
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: delete: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: snapid: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: mac: autoyast: showvncport: toserver: cores: nested" "hclyn:s:m:d:e:" "$@"` || usage 
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: delete: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: snapid: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: mac: autoyast: showvncport: toserver: cores: nested dtc" "hclyn:s:m:d:e:" "$@"` || usage 
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]
@@ -1278,6 +1287,7 @@ do
      --toserver) to_server="$2";shift;;
      --cores) cores="$2";shift;;
      --nested) nested="1";;
+     --dtc) deploy_through_client="yes";;
      -h) usage; exit ;;
      --help) usage; exit ;;
      --)        shift;break;;
