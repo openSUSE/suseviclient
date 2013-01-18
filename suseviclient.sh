@@ -229,16 +229,17 @@ checkimage() {
 
 imageupload() {
 
-        #curl -u "$1":"$2" "$imagelink" | $ssh root@$esx_server "cat > /vmfs/volumes/$datastore/${name// /\ }/studio.iso" && echo "Image uploaded"
+        ## Workaround of Studio Bug 716657
+
+        httpheader=$(curl -i $imagelink|head -1)
+        
+        if [ "$httpheader" != "HTTP/1.1 200 OK" ]; then
+          imagelink="http://$studioserver$imagelink"
+        fi
 
         if [ "$format" = "oemiso" ] ; then
 
                 $ssh root@$esx_server "wget $imagelink -O  /vmfs/volumes/$datastore/${name// /\ }/studio.iso"
-		if [ $? -ne 0 ]; then
-		## Workaround of Studio Bug 716657, seems that it will be fixed in the next millenium
-	 		imagelink="http://$studioserver$imagelink"
-			$ssh root@$esx_server "wget $imagelink -O  /vmfs/volumes/$datastore/${name// /\ }/studio.iso"	
-		fi
                 if [ $? -eq 0 ]; then
                         echo "Image uploaded"
                 else
@@ -258,11 +259,7 @@ imageupload() {
                 else
                   $ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && wget '$imagelink'"
                 fi
-		if [ $? -ne 0 ]; then
-		## Workaround of Studio Bug 716657, seems that it will be fixed in the next millenium
-	 		imagelink="http://$studioserver$imagelink"
-                	$ssh root@$esx_server "cd '/vmfs/volumes/$datastore/' && wget '$imagelink'"
-		fi
+
                 if [ $? -eq 0 ]; then
                         echo "Image uploaded"
                 else
