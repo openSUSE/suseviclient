@@ -1250,19 +1250,19 @@ if [ ! -z $power_on_vmid ]; then
 fi
 
 #dslist execution
-if [[  -n $esx_server && ! -z $dslist ]]; then
+if [[ -n $esx_server && ! -z $dslist ]]; then
     dslist
     cleanup
 fi
 
 #dsbrowse execution
-if [[  -n $esx_server && ! -z $dsbrowse ]]; then
+if [[ -n $esx_server && ! -z $dsbrowse ]]; then
     dsbrowse $dsbrowse
     cleanup
 fi
 
 #snapshotlist execution
-if [[  -n $esx_server && ! -z $snapshotlist_vmid ]]; then
+if [[ -n $esx_server && ! -z $snapshotlist_vmid ]]; then
     snapshotlist $snapshotlist_vmid
     cleanup
 fi
@@ -1275,31 +1275,31 @@ if [[ -n $esx_server && ! -z $snapshotremove_vmid ]]; then
     fi
 fi
 
-if [[-n $esx_server && ! -z $vnc ]]; then
+if [[ -n $esx_server && ! -z $vnc ]]; then
     vmid2name $vnc && vmid2datastore $vnc && vmid2relpath $vnc && get_vnc_port && vnc_connect
     cleanup
 fi
 
 #snapshot
-if [[  -n $esx_server && ! -z $snap_vmid ]]; then
+if [[ -n $esx_server && ! -z $snap_vmid ]]; then
     snapname=${snapname:-$(echo "snapshot "$(date +"%d-%m-%Y %T"))}; snapshot $snap_vmid "$snapname"
     cleanup
 fi
 
 #snapshot revert
-if [[  -n $esx_server && ! -z $revert_vmid ]]; then
+if [[ -n $esx_server && ! -z $revert_vmid ]]; then
     if [[ -n $snapname || -n $snapid ]]; then
         revert $revert_vmid "$snapname"
         cleanup
    fi
 fi
 
-if [[  -n $esx_server && ! -z $remove_vmid ]]; then
+if [[ -n $esx_server && ! -z $remove_vmid ]]; then
     remove $remove_vmid
     cleanup
 fi
 
-if [[  -n $esx_server && ! -z $addvnc_vmid ]]; then
+if [[ -n $esx_server && ! -z $addvnc_vmid ]]; then
     addvnc $addvnc_vmid
     cleanup
 fi
