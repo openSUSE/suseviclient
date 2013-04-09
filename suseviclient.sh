@@ -210,7 +210,7 @@ imageupload() {
 
     ## Workaround of Studio Bug 716657
 
-    httpheader=$(curl -i $imagelink|head -1)
+    httpheader=$(curl -si $imagelink|head -1| tr -d '\r')
 
     if [ "$httpheader" != "HTTP/1.1 200 OK" ]; then
         imagelink="http://$studioserver$imagelink"
