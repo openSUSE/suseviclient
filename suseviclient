@@ -710,8 +710,8 @@ revert(){
     fi
     snaplevel=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1 | grep '$snapname' | egrep -o '\-*'| wc -c"`
     if [ ! $snaplevel -eq 0 ]; then
-        snaplevel=$(( $snaplevel/2-1))
-        $ssh root@$esx_server "vim-cmd vmsvc/snapshot.revert $1 suppressPowerOff $snaplevel" > /dev/null
+      snaplevel=$(( ($snaplevel-1)/2 ))
+        $ssh root@$esx_server "vim-cmd vmsvc/snapshot.revert $1 $snaplevel suppressPowerOff 0" > /dev/null
         echo "Reverted to snapshot: $snapname"
     else
         echo "No snapshot with specified name: $snapname"
