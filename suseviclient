@@ -710,8 +710,15 @@ revert(){
     fi
     snaplevel=`$ssh root@$esx_server "vim-cmd vmsvc/snapshot.get $1 | grep '$snapname' | egrep -o '\-*'| wc -c"`
     if [ ! $snaplevel -eq 0 ]; then
-      snaplevel=$(( ($snaplevel-1)/2 ))
+      esxiversion
+      # Handle different snapshot indexing and arg order in ESXi 5.1
+      if [[ $esxiversion =~ 5\.1\.? ]]; then
+        snaplevel=$(( ($snaplevel-1)/2 ))
         $ssh root@$esx_server "vim-cmd vmsvc/snapshot.revert $1 $snaplevel suppressPowerOff 0" > /dev/null
+      else
+        snaplevel=$(( $snaplevel/2-1 ))
+        $ssh root@$esx_server "vim-cmd vmsvc/snapshot.revert $1 suppressPowerOff $snaplevel 0" > /dev/null
+      fi
         echo "Reverted to snapshot: $snapname"
     else
         echo "No snapshot with specified name: $snapname"
