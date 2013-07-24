@@ -288,7 +288,7 @@ initial_info() {
         $ssh root@$esx_server "/usr/lib/vmware/bin/vmdumper  -l| grep \"$resolved_ds/$relpath\" > /dev/null" < /dev/null
         pwstate=$?
         if [ $pwstate -eq 0 ]; then
-            finallist=$finallist"${COL_GREEN}Powered on${COL_OFF}    $line\n"
+            finallist=$finallist"${COL_GREEN}Powered on${COL_OFF}     $line\n"
         else
             finallist=$finallist"${COL_RED}Powered off${COL_OFF}    $line\n"
         fi
