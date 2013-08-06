@@ -25,6 +25,10 @@
 
 # end of config section
 
+version() {
+  echo "1.0.0"
+}
+
 # setting SSH Control Master
 control_master() {
     CONTROL=/tmp/ssh-control-`date +%s`-$RANDOM
@@ -378,7 +382,6 @@ SUSE Studio specific options:
 --buildimage <appliance_id> Build Preload ISO of specified appliance for deployment
 --buildstatus <appliance_id> Get info on running builds of specified appliance
 --format <image format> specify oemiso or vmx here
---help This help
 
 Network Management:
 -------------------
@@ -407,6 +410,13 @@ apikey=\"studioapikey\"
 studioserver=\"istudio.suse.de\"
 
 All specified directives in config file are easily overridable by the related command control option.
+
+Help and version:
+-----------------
+
+-h|--help This help
+-V|--version Version
+
 "
 }
 
@@ -1095,7 +1105,7 @@ enable_nested_virtualization() {
     fi
 }
 
-eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: delete: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: snapid: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: mac: autoyast: showvncport: toserver: cores: nested dtc" "hclyn:s:m:d:e:" "$@"` || usage
+eval set -- `getopt -n$0 -a  --longoptions="vncpass: novncpass ds: iso: vmdk: vnc: help status: poweron: poweroff: reset: snapshot: snapshotremove: all revert: clone: remove: delete: addvnc: bios dslist vmfs dsbrowse: snapshotlist: snapname: snapid: apiuser: apikey: appliances buildimage: buildstatus: studio: studioserver: format: export: networks: vswitches nics vswitchadd: vswitchremove: network: mac: autoyast: showvncport: toserver: cores: nested dtc version" "Vhclyn:s:m:d:e:" "$@"` || usage
 [ $# -eq 0 ] && usage
 
 while [ $# -gt 0 ]; do
@@ -1155,8 +1165,8 @@ while [ $# -gt 0 ]; do
          --cores) cores="$2";shift;;
          --nested) nested="1";;
          --dtc) deploy_through_client="yes";;
-         -h) usage; exit ;;
-         --help) usage; exit ;;
+         -h|--help) usage; exit ;;
+         -V|--version) version; exit ;;
          --) shift;break;;
          -*) usage;;
          *) break;;
