@@ -29,9 +29,12 @@ Features
 How does it work?
 -----------------
 
-It wraps and automates so called ESXi 'Tech Support Mode' which is effectively ssh server and number of special(poor documented) VMware  management commands.
+It wraps and automates so called ESXi 'Tech Support Mode' which is
+effectively ssh server and number of special(poor documented) VMware
+management commands.
 
-Currently it well tested with ESXi 4.0/4.1. It should also work with ESX, but it was minimally covered by testing.
+Currently it well tested with ESXi 4.0/4.1. It should also work with
+ESX, but it was minimally covered by testing.
 
 Recent ESXi 5.0 support is also tested and implemented.
 
@@ -45,9 +48,11 @@ Examples
 		apikey="your_key"
 		EOF
 
-1) Create VM of 512MB RAM and 8GB disk with ISO attached, poweron, connect to VM console:
+1) Create VM of 512MB RAM and 8GB disk with ISO attached, poweron,
+   connect to VM console:
 
-		suseviclient.sh -c -n "ISO Example" -m 512 -d 8G --iso datastore1/path/to/image.iso
+		suseviclient.sh -c -n "ISO Example" -m 512 -d 8G \
+      --iso datastore1/path/to/image.iso
 		Enter new VNC password:
 		Repeat VNC password:
 
@@ -71,7 +76,8 @@ Where 64 is VM id.
 
 		suseviclient.sh --vnc 64
 
-2) Create VM from VMDK image( includes automated conversion of desktop vmdk to server version):
+2) Create VM from VMDK image( includes automated conversion of desktop
+   vmdk to server version):
 
 		suseviclient.sh -c -n "VMDK Example" --vmdk datastore1/path/to/image.vmdk
 
@@ -83,13 +89,18 @@ Where 64 is VM id.
 
 		suseviclient.sh -c -n "PXE Example" -m 512 -d 5G
 
-This will create blank VM with network attached. If PXE is enabled in your network it should be possible to perform a network boot after the VM is powered on.
+This will create blank VM with network attached. If PXE is enabled in
+your network it should be possible to perform a network boot after the
+VM is powered on.
 
-5) Create VM with nested virtualization capabilities, a.k.a. to test another hypervisor within ESXi( KVM works pretty good there!)
+5) Create VM with nested virtualization capabilities, a.k.a. to test
+   another hypervisor within ESXi( KVM works pretty good there!)
    
-    suseviclient.sh -c -n "Nested VM Example" --vmdk datastore1/path/to/image.vmdk --nested
+    suseviclient.sh -c -n "Nested VM Example" \
+      --vmdk datastore1/path/to/image.vmdk --nested
     
---vmdk provided only for illustration: --nested will work with any provisioning type
+--vmdk provided only for illustration: --nested will work with any
+provisioning type.
 
 For full list of possible options see
  
@@ -98,18 +109,23 @@ For full list of possible options see
 Installation
 ------------
 
-Just download and  put suseviclient.sh somewhere in the $PATH for you convenience.
+Just download and put suseviclient.sh somewhere in the $PATH
+for your convenience.
 
-Shell version of suseviclient introduces no dependencies except of bash, ssh and vncviewer which can be found on almost any Linux desktop.
+Shell version of suseviclient introduces no dependencies except of bash,
+ssh and vncviewer which can be found on almost any Linux desktop.
 
 
 On the ESXi server side you have to enable ssh access, see: 
 
-*http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1003677 for ESXi 4.0
-*http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1017910 for ESXi 4.1/5.0
+* http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1003677 for ESXi 4.0
+* http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1017910 for ESXi 4.1/5.0
 
-It's recommended to upload your ssh key to the server to not to enter password each time as passing management command through client.
-The root fs on ESXi is not permanent storage, so it's recommended to put the key on some connected datastore and automate the key copy on next reboot.
+It's recommended to upload your ssh key to the server to not to enter
+password each time as passing management command through client.
+The root fs on ESXi is not permanent storage, so it's recommended to put
+the key on some connected datastore and automate the key copy on next
+reboot.
 
 Assuming that you have "datastore1" connected to ESXi server, do this
 
@@ -119,14 +135,20 @@ Assuming that you have "datastore1" connected to ESXi server, do this
 
 That's it. It's all you need to start using suseviclient.
 
-All .rb files are additional modules( like web interface) and will be described separately.
+All .rb files are additional modules (like web interface) and will be
+described separately.
 
 Web Interface
 -------------
 
-Web fronted is available with webfrontend.rb currently under initial development state but already functional.
+Web fronted is available with webfrontend.rb currently under initial
+development state but already functional.
 
 It is built with 
 
-* Sinatra ( http://www.sinatrarb.com/ ) ruby framework ( so please '#gem install sinatra' if you want to try) 
-* NoVNC ( VNC client using HTML5 WebSockets, Canvas,  http://kanaka.github.com/noVNC/ ) to allow access to VMs consoles.
+* Sinatra (http://www.sinatrarb.com/) ruby framework (so please
+  '# gem install sinatra' if you want to try)
+
+* NoVNC (VNC client using HTML5 WebSockets, Canvas,
+  http://kanaka.github.com/noVNC/) to allow access to VMs consoles.
+
