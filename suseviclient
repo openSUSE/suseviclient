@@ -575,6 +575,7 @@ vnc_connect(){
         fi
         echo $output| egrep -q "(Unknown message type|Zero size rect|suseviclient-vncrestart|Rect too large)"
         if [ $? -eq 1 ]; then
+            output=$(echo "$vncpassword"|vncviewer $esx_server:$vnc_conn_port 2>&1)
             connect=""
         fi
     done
