@@ -438,6 +438,10 @@ register_vm () {
         virtualHWversion="8"
     elif [[ $esxiversion =~ 5\.1\.? ]]; then
         virtualHWversion="9"
+    elif [[ $esxiversion =~ 5\.5\.? ]]; then
+        virtualHWversion="10"
+    elif [[ $esxiversion =~ 6\.0\.? ]]; then
+        virtualHWversion="11"
     else
         echo "Can't detect ESXi version"; cleanup
     fi
